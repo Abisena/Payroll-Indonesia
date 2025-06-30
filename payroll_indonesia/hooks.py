@@ -4,7 +4,6 @@
 # Last modified: 2025-06-29 04:11:36 by dannyaudian
 
 from __future__ import unicode_literals
-from typing import Dict, List, Any, Union
 
 # ❶ Basic app configuration
 app_name = "payroll_indonesia"
@@ -38,7 +37,7 @@ doc_events = {
     },
     "Payroll Entry": {
         "validate": "payroll_indonesia.override.payroll_entry.validate",
-        "on_submit": "payroll_indonesia.override.payroll_entry.on_submit"
+        "on_submit": "payroll_indonesia.override.payroll_entry.on_submit",
     },
     "Salary Slip": {
         "validate": "payroll_indonesia.override.salary_slip_functions.update_component_amount",
@@ -82,15 +81,9 @@ fixtures = [
     {"doctype": "Client Script", "filters": [["module", "=", "Payroll Indonesia"]]},
     {"doctype": "Workspace", "filters": [["module", "=", "Payroll Indonesia"]]},
     {"doctype": "Report", "filters": [["module", "=", "Payroll Indonesia"]]},
-    {
-        "doctype": "Print Format",
-        "filters": [["name", "in", ["BPJS Payment Summary Report"]]]
-    },
+    {"doctype": "Print Format", "filters": [["name", "in", ["BPJS Payment Summary Report"]]]},
     # Master Data
-    {
-        "doctype": "Supplier Group",
-        "filters": [["name", "in", ["BPJS Provider", "Tax Authority"]]]
-    },
+    {"doctype": "Supplier Group", "filters": [["name", "in", ["BPJS Provider", "Tax Authority"]]]},
     {
         "doctype": "Supplier",
         "filters": [["supplier_group", "in", ["BPJS Provider", "Tax Authority"]]],
@@ -167,15 +160,12 @@ jinja = {
         # Configuration and Utils
         "payroll_indonesia.config.config.get_live_config",
         "payroll_indonesia.payroll_indonesia.utils.get_formatted_currency",
-        
         # Tax calculation methods
         "payroll_indonesia.override.salary_slip.tax_calculator.get_ptkp_value",
         "payroll_indonesia.override.salary_slip.ter_calculator.get_ter_rate",
-        
         # BPJS methods
         "payroll_indonesia.override.salary_slip.bpjs_calculator.calculate_components",
         "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.get_mapping_for_company",
-        
         # YTD methods
         "payroll_indonesia.override.salary_slip.salary_utils.calculate_ytd_and_ytm",
     ]
@@ -191,14 +181,11 @@ whitelist_methods = [
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.get_employee_bpjs_details",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.get_summary_for_period",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.get_bpjs_suppliers",
-    
     # Tax Summary API
     "payroll_indonesia.payroll_indonesia.doctype.employee_tax_summary.employee_tax_summary.get_ytd_data_until_month",
-    
     # BPJS Account API
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.get_mapping_for_company",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.create_default_mapping",
-    
     # API endpoints
     "payroll_indonesia.api.get_employee",
     "payroll_indonesia.api.get_salary_slip",
@@ -211,8 +198,7 @@ whitelist_methods = [
 
 # Override whitelisted methods
 override_whitelisted_methods = {
-    "hrms.payroll.doctype.salary_slip.salary_slip.make_salary_slip_from_timesheet":
-        "payroll_indonesia.override.salary_slip.make_salary_slip_from_timesheet"
+    "hrms.payroll.doctype.salary_slip.salary_slip.make_salary_slip_from_timesheet": "payroll_indonesia.override.salary_slip.make_salary_slip_from_timesheet"
 }
 
 # Module Category - for Desk

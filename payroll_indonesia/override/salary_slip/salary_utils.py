@@ -20,11 +20,11 @@ def calculate_ytd_and_ytm(slip: Any, date: Optional[str] = None) -> Dict[str, fl
     """
     Calculate Year-to-Date (YTD) and Year-to-Month (YTM) values for salary slip.
     Delegates to the detailed implementation in salary_slip_functions.py.
-    
+
     Args:
         slip: Salary slip document
         date: Optional date to use instead of slip's end_date
-        
+
     Returns:
         Dict with YTD and YTM values for earnings, deductions, gross pay, and BPJS
     """
@@ -34,10 +34,9 @@ def calculate_ytd_and_ytm(slip: Any, date: Optional[str] = None) -> Dict[str, fl
     except Exception as e:
         # Log the error but don't break the application
         logger.exception(
-            f"Error calculating YTD/YTM values for "
-            f"{getattr(slip, 'name', 'unknown')}: {e}"
+            f"Error calculating YTD/YTM values for " f"{getattr(slip, 'name', 'unknown')}: {e}"
         )
-        
+
         # Return default values on error
         return {
             "ytd_gross": 0.0,

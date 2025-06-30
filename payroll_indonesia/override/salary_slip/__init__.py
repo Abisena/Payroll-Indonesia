@@ -9,4 +9,4 @@ from __future__ import unicode_literals
 
 from .salary_utils import calculate_ytd_and_ytm
 
-__all__ = ['calculate_ytd_and_ytm']
+__all__ = ["calculate_ytd_and_ytm"]

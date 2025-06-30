@@ -10,7 +10,6 @@ from frappe.exceptions import ValidationError
 # Import utility functions from centralized utils module
 from payroll_indonesia.config.config import get_config as get_default_config
 from payroll_indonesia.payroll_indonesia.utils import (
-    get_or_create_account,
     debug_log,
 )
 
@@ -367,7 +366,7 @@ def setup_all_accounts():
 
         return results
     except Exception as e:
-        debug_log(f"Error in setup_all_accounts: {str(e)}", "Migration Error", trace=True)
+        debug_log(f"Error in setup_all_accounts: {str(e)}", "Migration Error")
         frappe.log_error(
             f"Error in setup_all_accounts: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "Migration Error",
@@ -481,7 +480,12 @@ def setup_accounts(config=None, specific_company=None):
 
             # Create BPJS liability accounts from config
             _create_bpjs_accounts_from_config(
-                company.name, "bpjs_payable_accounts", liability_parent, "Liability", config, results
+                company.name,
+                "bpjs_payable_accounts",
+                liability_parent,
+                "Liability",
+                config,
+                results,
             )
 
             # Create BPJS expense accounts from config
@@ -513,9 +517,7 @@ def setup_accounts(config=None, specific_company=None):
     return results
 
 
-def _create_bpjs_accounts_from_config(
-    company, account_key, parent, root_type, config, results
-):
+def _create_bpjs_accounts_from_config(company, account_key, parent, root_type, config, results):
     """
     Create BPJS accounts from configuration
 
@@ -531,7 +533,7 @@ def _create_bpjs_accounts_from_config(
 
     # Get accounts from config
     accounts = config.get("gl_accounts", {}).get(account_key, {})
-    
+
     if not accounts:
         error_msg = f"No {account_key} found in configuration"
         debug_log(error_msg, "Account Setup")
@@ -539,17 +541,20 @@ def _create_bpjs_accounts_from_config(
         raise ValidationError(error_msg)
 
     account_type = "Payable" if root_type == "Liability" else "Expense Account"
-    
+
     # Create each account
     for key, account_data in accounts.items():
         try:
             account_name = account_data.get("account_name", "")
-            
+
             if not account_name:
                 continue
-            
-            debug_log(f"Creating {root_type.lower()} account {account_name} for {company}", "Account Setup")
-            
+
+            debug_log(
+                f"Creating {root_type.lower()} account {account_name} for {company}",
+                "Account Setup",
+            )
+
             account = create_account(
                 company=company,
                 account_name=account_name,
@@ -558,7 +563,7 @@ def _create_bpjs_accounts_from_config(
                 root_type=account_data.get("root_type", root_type),
                 is_group=0,
             )
-            
+
             if account:
                 results["created"].append(account)
                 debug_log(f"Created {root_type.lower()} account: {account}", "Account Setup")

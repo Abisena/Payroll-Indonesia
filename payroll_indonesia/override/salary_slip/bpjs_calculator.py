@@ -8,7 +8,9 @@ BPJS calculator module - satu-satunya kalkulator BPJS.
 """
 
 import logging
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict
+
+# from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from payroll_indonesia.config.config import get_live_config
 from payroll_indonesia.constants import (
@@ -25,8 +27,8 @@ from payroll_indonesia.constants import (
     BPJS_JKM_PERCENT,
 )
 
-if TYPE_CHECKING:
-    from frappe.model.document import Document
+# if TYPE_CHECKING:
+#     from frappe.model.document import Document
 
 logger = logging.getLogger("bpjs_calc")
 
@@ -59,19 +61,19 @@ def validate_bpjs_percentages(cfg: Dict[str, Any]) -> bool:
         "jkk_percent",
         "jkm_percent",
     ]
-    
+
     return all(_validate_percentage(key, bpjs.get(key, 0)) for key in percentage_keys)
 
 
 def _get_base_salary(slip: Any) -> float:
     """Extract base salary from salary slip or return default UMR."""
     base_salary = 0.0
-    
+
     # Try to get from gross_pay attribute
     if hasattr(slip, "gross_pay") and slip.gross_pay:
         base_salary = float(slip.gross_pay)
         return base_salary
-    
+
     # Try to get from earnings list (looking for "Gaji Pokok")
     if hasattr(slip, "earnings"):
         for earning in getattr(slip, "earnings", []):
@@ -79,7 +81,7 @@ def _get_base_salary(slip: Any) -> float:
                 base_salary += float(getattr(earning, "amount", 0))
         if base_salary > 0:
             return base_salary
-    
+
     # Use default UMR if no base salary found
     config = get_live_config()
     default_umr = float(config.get("bpjs", {}).get("default_umr", DEFAULT_UMR))
@@ -98,54 +100,28 @@ def calculate_components(slip: Any) -> Dict[str, float]:
         return {}
 
     bpjs_config = cfg.get("bpjs", {})
-    
+
     # Get base salary
     base_salary = _get_base_salary(slip)
-    
+
     # Get salary caps from config or defaults
-    kesehatan_max = float(bpjs_config.get(
-        "kesehatan_max_salary", 
-        BPJS_KESEHATAN_MAX_SALARY
-    ))
-    jp_max = float(bpjs_config.get(
-        "jp_max_salary", 
-        BPJS_JP_MAX_SALARY
-    ))
+    kesehatan_max = float(bpjs_config.get("kesehatan_max_salary", BPJS_KESEHATAN_MAX_SALARY))
+    jp_max = float(bpjs_config.get("jp_max_salary", BPJS_JP_MAX_SALARY))
 
     # Get percentages from config or defaults
     percentages = {
-        "kesehatan_emp": float(bpjs_config.get(
-            "kesehatan_employee_percent", 
-            BPJS_KESEHATAN_EMPLOYEE_PERCENT
-        )),
-        "kesehatan_com": float(bpjs_config.get(
-            "kesehatan_employer_percent", 
-            BPJS_KESEHATAN_EMPLOYER_PERCENT
-        )),
-        "jht_emp": float(bpjs_config.get(
-            "jht_employee_percent", 
-            BPJS_JHT_EMPLOYEE_PERCENT
-        )),
-        "jht_com": float(bpjs_config.get(
-            "jht_employer_percent", 
-            BPJS_JHT_EMPLOYER_PERCENT
-        )),
-        "jp_emp": float(bpjs_config.get(
-            "jp_employee_percent", 
-            BPJS_JP_EMPLOYEE_PERCENT
-        )),
-        "jp_com": float(bpjs_config.get(
-            "jp_employer_percent", 
-            BPJS_JP_EMPLOYER_PERCENT
-        )),
-        "jkk": float(bpjs_config.get(
-            "jkk_percent", 
-            BPJS_JKK_PERCENT
-        )),
-        "jkm": float(bpjs_config.get(
-            "jkm_percent", 
-            BPJS_JKM_PERCENT
-        )),
+        "kesehatan_emp": float(
+            bpjs_config.get("kesehatan_employee_percent", BPJS_KESEHATAN_EMPLOYEE_PERCENT)
+        ),
+        "kesehatan_com": float(
+            bpjs_config.get("kesehatan_employer_percent", BPJS_KESEHATAN_EMPLOYER_PERCENT)
+        ),
+        "jht_emp": float(bpjs_config.get("jht_employee_percent", BPJS_JHT_EMPLOYEE_PERCENT)),
+        "jht_com": float(bpjs_config.get("jht_employer_percent", BPJS_JHT_EMPLOYER_PERCENT)),
+        "jp_emp": float(bpjs_config.get("jp_employee_percent", BPJS_JP_EMPLOYEE_PERCENT)),
+        "jp_com": float(bpjs_config.get("jp_employer_percent", BPJS_JP_EMPLOYER_PERCENT)),
+        "jkk": float(bpjs_config.get("jkk_percent", BPJS_JKK_PERCENT)),
+        "jkm": float(bpjs_config.get("jkm_percent", BPJS_JKM_PERCENT)),
     }
 
     # Apply salary caps
@@ -166,9 +142,7 @@ def calculate_components(slip: Any) -> Dict[str, float]:
 
     # Calculate totals
     total_employee = kesehatan_employee + jht_employee + jp_employee
-    total_employer = (
-        kesehatan_employer + jht_employer + jp_employer + jkk_amount + jkm_amount
-    )
+    total_employer = kesehatan_employer + jht_employer + jp_employer + jkk_amount + jkm_amount
 
     # Prepare result dictionary
     result = {
@@ -183,7 +157,7 @@ def calculate_components(slip: Any) -> Dict[str, float]:
         "total_employee": round(total_employee),
         "total_employer": round(total_employer),
     }
-    
+
     employee_id = getattr(slip, "employee", "unknown")
     logger.debug(f"BPJS calculation for {employee_id}: {result}")
     return result

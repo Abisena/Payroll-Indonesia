@@ -8,25 +8,30 @@ No tax/BPJS-specific functions.
 """
 
 import logging
-from typing import Any, Callable, Optional, Dict, TypeVar, cast
+from typing import Any, Callable, Optional, TypeVar, cast
+
+# from typing import Any, Callable, Optional, Dict, TypeVar, cast
 import frappe
 
 from payroll_indonesia.config.config import get_live_config
-from payroll_indonesia.frappe_helpers import ensure_doc_exists
+
+# from payroll_indonesia.frappe_helpers import ensure_doc_exists
 
 logger = logging.getLogger("payroll_utils")
 F = TypeVar("F", bound=Callable[..., Any])
 
+
 def debug_log(message: str, data: Any = None):
     from frappe.utils import now
+
     print(f"[{now()}] {message}")
     if data:
         import pprint
+
         pprint.pprint(data)
 
-def safe_execute(
-    default_value: Any = None, log_exception: bool = True
-) -> Callable[[F], F]:
+
+def safe_execute(default_value: Any = None, log_exception: bool = True) -> Callable[[F], F]:
     """
     Decorator to safely execute a function.
     Returns default_value on Exception.
@@ -38,9 +43,7 @@ def safe_execute(
                 return func(*args, **kwargs)
             except Exception as e:
                 if log_exception:
-                    logger.error(
-                        f"Error in {func.__name__}: {e}", exc_info=True
-                    )
+                    logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
                 return default_value
 
         return cast(F, wrapper)
@@ -107,9 +110,7 @@ def get_or_create_account(
         "parent_account": parent,
         "is_group": is_group,
         "root_type": root_type,
-        "account_currency": frappe.get_cached_value(
-            "Company", company, "default_currency"
-        ),
+        "account_currency": frappe.get_cached_value("Company", company, "default_currency"),
     }
     if not is_group and account_type:
         acc_data["account_type"] = account_type
@@ -154,17 +155,11 @@ def _find_parent_account(
     parent_candidates = config.get("parent_accounts", {}).get(root_type, [])
     if not parent_candidates:
         if root_type == "Liability":
-            parent_candidates = [
-                "Duties and Taxes", "Current Liabilities", "Accounts Payable"
-            ]
+            parent_candidates = ["Duties and Taxes", "Current Liabilities", "Accounts Payable"]
         elif root_type == "Expense":
-            parent_candidates = [
-                "Direct Expenses", "Indirect Expenses", "Expenses"
-            ]
+            parent_candidates = ["Direct Expenses", "Indirect Expenses", "Expenses"]
         elif root_type == "Income":
-            parent_candidates = [
-                "Income", "Direct Income", "Indirect Income"
-            ]
+            parent_candidates = ["Income", "Direct Income", "Indirect Income"]
         elif root_type == "Asset":
             parent_candidates = ["Current Assets", "Fixed Assets"]
         else:

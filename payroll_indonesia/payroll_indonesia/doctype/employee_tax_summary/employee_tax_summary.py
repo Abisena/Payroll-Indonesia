@@ -70,13 +70,13 @@ class EmployeeTaxSummary(Document):
     def calculate_ytd_summary(self):
         """Calculate YTD summary amounts from monthly details"""
         total_gross, total_tax, total_bpjs = 0, 0, 0
-        for md in (self.monthly_details or []):
+        for md in self.monthly_details or []:
             total_gross += flt(getattr(md, "gross_pay", 0))
-            total_tax   += flt(getattr(md, "tax_amount", 0))
-            total_bpjs  += flt(getattr(md, "bpjs_deductions_employee", 0))
+            total_tax += flt(getattr(md, "tax_amount", 0))
+            total_bpjs += flt(getattr(md, "bpjs_deductions_employee", 0))
         self.ytd_gross_pay = total_gross
-        self.ytd_tax       = total_tax
-        self.ytd_bpjs      = total_bpjs
+        self.ytd_tax = total_tax
+        self.ytd_bpjs = total_bpjs
 
     def validate_required_fields(self):
         """Validate that all required fields are present"""
@@ -372,7 +372,7 @@ class EmployeeTaxSummary(Document):
         # Update YTD fields from salary slip
         if hasattr(self.monthly_details[month_index], "ytd_gross_pay"):
             self.monthly_details[month_index].ytd_gross_pay = tax_data["ytd_gross_pay"]
-        
+
         if hasattr(self.monthly_details[month_index], "ytd_bpjs"):
             self.monthly_details[month_index].ytd_bpjs = tax_data["ytd_bpjs"]
 

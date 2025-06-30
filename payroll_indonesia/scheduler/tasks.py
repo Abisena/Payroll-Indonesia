@@ -16,19 +16,18 @@ scheduler_events = {
 """
 
 import logging
-from datetime import datetime
+
+# from datetime import datetime
 
 import frappe
-from frappe import _
+
+# from frappe import _
 from frappe.utils import getdate, add_months, get_first_day, get_last_day
 
-from payroll_indonesia.override.salary_slip import (
-    bpjs_calculator,
-    tax_calculator
-)
-from payroll_indonesia.payroll_indonesia import utils
+# from payroll_indonesia.override.salary_slip import bpjs_calculator, tax_calculator
+# from payroll_indonesia.payroll_indonesia import utils
 
-logger = logging.getLogger('payroll_tasks')
+logger = logging.getLogger("payroll_tasks")
 
 
 def daily_job():
@@ -46,11 +45,11 @@ def daily_job():
 
         # Enqueue tax cache validation (can be heavy)
         frappe.enqueue(
-            'payroll_indonesia.scheduler.tasks.validate_tax_cache',
-            queue='long',
-            job_name='validate_tax_cache',
+            "payroll_indonesia.scheduler.tasks.validate_tax_cache",
+            queue="long",
+            job_name="validate_tax_cache",
             is_async=True,
-            timeout=1800
+            timeout=1800,
         )
 
         logger.info("Completed Payroll Indonesia daily tasks")
@@ -69,26 +68,26 @@ def monthly_job():
     try:
         logger.info("Starting Payroll Indonesia monthly tasks")
         today = getdate()
-        
+
         # Get previous month details
         prev_month = add_months(today, -1)
         month_num = prev_month.month
         year_num = prev_month.year
-        
+
         # Create BPJS payment summaries
         create_bpjs_summaries(prev_month)
-        
+
         # Update tax summaries for previous month (heavier task)
         frappe.enqueue(
-            'payroll_indonesia.payroll_indonesia.tax.monthly_tasks.update_tax_summaries',
-            queue='long',
-            job_name='update_tax_summaries',
+            "payroll_indonesia.payroll_indonesia.tax.monthly_tasks.update_tax_summaries",
+            queue="long",
+            job_name="update_tax_summaries",
             month=month_num,
             year=year_num,
             is_async=True,
-            timeout=3600
+            timeout=3600,
         )
-        
+
         logger.info("Completed Payroll Indonesia monthly tasks")
     except Exception as e:
         logger.error(f"Error in monthly_job: {str(e)}")
@@ -105,34 +104,34 @@ def yearly_job():
     try:
         logger.info("Starting Payroll Indonesia yearly tasks")
         today = getdate()
-        
+
         # Only run in January for previous year
         if today.month != 1:
             logger.info("Skipping yearly task - only runs in January")
             return
-            
+
         prev_year = today.year - 1
-        
+
         # Process December flagged runs
         frappe.enqueue(
-            'payroll_indonesia.payroll_indonesia.tax.yearly_tasks.process_december_flagged_runs',
-            queue='long',
-            job_name='process_december_runs',
+            "payroll_indonesia.payroll_indonesia.tax.yearly_tasks.process_december_flagged_runs",
+            queue="long",
+            job_name="process_december_runs",
             year=prev_year,
             is_async=True,
-            timeout=7200
+            timeout=7200,
         )
-        
+
         # Prepare tax reports (heaviest task)
         frappe.enqueue(
-            'payroll_indonesia.payroll_indonesia.tax.yearly_tasks.prepare_tax_report',
-            queue='long',
-            job_name='prepare_tax_report',
+            "payroll_indonesia.payroll_indonesia.tax.yearly_tasks.prepare_tax_report",
+            queue="long",
+            job_name="prepare_tax_report",
             year=prev_year,
             is_async=True,
-            timeout=7200
+            timeout=7200,
         )
-        
+
         logger.info("Completed Payroll Indonesia yearly tasks")
     except Exception as e:
         logger.error(f"Error in yearly_job: {str(e)}")
@@ -152,25 +151,16 @@ def check_bpjs_settings():
 
         for company in companies:
             # Check BPJS Account Mapping
-            mapping = frappe.db.exists(
-                "BPJS Account Mapping", 
-                {"company": company}
-            )
+            mapping = frappe.db.exists("BPJS Account Mapping", {"company": company})
             if not mapping:
-                logger.warning(
-                    f"BPJS Account Mapping missing for company: {company}"
-                )
-                
+                logger.warning(f"BPJS Account Mapping missing for company: {company}")
+
                 # Create default mapping if possible
                 try:
                     create_default_mapping(company)
-                    logger.info(
-                        f"Created default BPJS mapping for: {company}"
-                    )
+                    logger.info(f"Created default BPJS mapping for: {company}")
                 except Exception as e:
-                    logger.error(
-                        f"Failed to create BPJS mapping for {company}: {str(e)}"
-                    )
+                    logger.error(f"Failed to create BPJS mapping for {company}: {str(e)}")
     except Exception as e:
         logger.error(f"Error checking BPJS settings: {str(e)}")
         raise
@@ -183,7 +173,7 @@ def create_bpjs_summaries(date_obj=None):
         if not date_obj:
             today = getdate()
             date_obj = add_months(today, -1)  # Previous month
-            
+
         # Get month date range
         first_day = get_first_day(date_obj)
         last_day = get_last_day(first_day)
@@ -195,11 +185,7 @@ def create_bpjs_summaries(date_obj=None):
             # Check if summary already exists
             existing = frappe.db.exists(
                 "BPJS Payment Summary",
-                {
-                    "company": company, 
-                    "start_date": first_day,
-                    "end_date": last_day
-                }
+                {"company": company, "start_date": first_day, "end_date": last_day},
             )
 
             if not existing:
@@ -212,13 +198,9 @@ def create_bpjs_summaries(date_obj=None):
                     summary.generate_from_salary_slips()
                     summary.insert()
 
-                    logger.info(
-                        f"Created BPJS Summary for {company} - {first_day}"
-                    )
+                    logger.info(f"Created BPJS Summary for {company} - {first_day}")
                 except Exception as e:
-                    logger.error(
-                        f"Error creating BPJS Summary for {company}: {str(e)}"
-                    )
+                    logger.error(f"Error creating BPJS Summary for {company}: {str(e)}")
     except Exception as e:
         logger.error(f"Error in create_bpjs_summaries: {str(e)}")
         raise
@@ -229,23 +211,19 @@ def create_default_mapping(company):
     try:
         mapping = frappe.new_doc("BPJS Account Mapping")
         mapping.company = company
-        
+
         # Try to find default accounts
-        chart_of_accounts = frappe.db.get_value(
-            "Company", company, "chart_of_accounts"
-        )
-        
+        # chart_of_accounts = frappe.db.get_value("Company", company, "chart_of_accounts")
+
         # Set default liability account
-        default_payable = frappe.db.get_value(
-            "Company", company, "default_payable_account"
-        )
+        default_payable = frappe.db.get_value("Company", company, "default_payable_account")
         if default_payable:
             mapping.kesehatan_account = default_payable
             mapping.jht_account = default_payable
             mapping.jp_account = default_payable
             mapping.jkk_account = default_payable
             mapping.jkm_account = default_payable
-            
+
         mapping.insert()
         return mapping.name
     except Exception as e:
@@ -258,9 +236,10 @@ def validate_tax_cache():
     try:
         # Clear cache for YTD totals older than 24 hours
         from payroll_indonesia.utilities.cache_utils import clear_pattern
+
         clear_pattern("ytd:*")
         clear_pattern("tax_summary:*")
-        
+
         # Log cache clearing
         logger.info("Cleared tax calculation cache")
     except Exception as e:
