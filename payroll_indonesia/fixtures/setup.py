@@ -361,7 +361,7 @@ def setup_all_accounts():
 
         return results
     except Exception as e:
-        debug_log(f"Error in setup_all_accounts: {str(e)}", "Migration Error", trace=True)
+        debug_log(f"Error in setup_all_accounts: {str(e)}", "Migration Error")
         frappe.log_error(
             f"Error in setup_all_accounts: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "Migration Error",
