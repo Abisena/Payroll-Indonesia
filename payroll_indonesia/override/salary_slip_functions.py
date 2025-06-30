@@ -1,488 +1,459 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-05-23 04:35:12 by dannyaudian
+# Last modified: 2025-06-29 02:45:27 by dannyaudian
 
-from typing import Any, Dict, Optional
+"""
+Helper functions for Salary Slip processing - without calculator duplication.
+"""
+
+# Standard imports
 import logging
+from typing import Any, Dict
 
+# from typing import Any, Dict, List, Optional, Union, Tuple, TYPE_CHECKING
+
+# Frappe imports
 import frappe
 from frappe import _
-from frappe.utils import flt, getdate
+from frappe.utils import getdate, flt
 
-# Import BPJS calculation functions
-from payroll_indonesia.payroll_indonesia.bpjs.bpjs_calculation import hitung_bpjs
-from payroll_indonesia.override.salary_slip.bpjs_calculator import calculate_bpjs_components
+# Calculator module imports
+import payroll_indonesia.override.salary_slip.bpjs_calculator as bpjs_calc
+import payroll_indonesia.override.salary_slip.tax_calculator as tax_calc
+import payroll_indonesia.override.salary_slip.ter_calculator as ter_calc
+import payroll_indonesia.override.salary_slip.salary_utils as utils
 
-# Import centralized tax calculation function
-from payroll_indonesia.override.salary_slip.tax_calculator import calculate_tax_components
+# import payroll_indonesia.payroll_indonesia.validations as val
 
-# Import standardized error logging and cache utilities
-from payroll_indonesia.utilities.cache_utils import clear_all_caches, schedule_cache_clearing
+# Config
+from payroll_indonesia.config.config import get_live_config
 
-# Import salary slip validation utility
-from payroll_indonesia.utilities.salary_slip_validator import has_pph21_component
-
-__all__ = [
-    "validate_salary_slip",
-    "on_submit_salary_slip",
-    "on_cancel_salary_slip",
-    "after_insert_salary_slip",
-    "clear_caches",
-]
-
-# Type aliases
-SalarySlipDoc = Any  # frappe.model.document.Document type for Salary Slip
-EmployeeDoc = Any  # frappe.model.document.Document type for Employee
+# Logger setup
+logger = logging.getLogger("salary_slip_fn")
 
 
-def get_logger() -> logging.Logger:
-    """Get properly configured logger for salary slip functions module."""
-    return frappe.logger("salary_slip_functions", with_more_info=True)
-
-
-def validate_salary_slip(doc: SalarySlipDoc, method: Optional[str] = None) -> None:
+def update_component_amount(slip: Any) -> Dict[str, Any]:
     """
-    Event hook for validating Salary Slip.
-    Handles tax and BPJS calculations with appropriate error handling.
+    Update BPJS and PPh 21 component amounts in salary slip.
 
     Args:
-        doc: The Salary Slip document
-        method: Method name (not used)
-    """
-    try:
-        # Initialize default fields if needed
-        _initialize_payroll_fields(doc)
-
-        # Get employee document
-        employee = _get_employee_doc(doc)
-
-        # Calculate BPJS components using the new centralizing function
-        # This will automatically update the required fields
-        calculate_bpjs_components(doc)
-
-        # Verify BPJS fields are set properly
-        _verify_bpjs_fields(doc)
-
-        # Calculate tax components using centralized function
-        calculate_tax_components(doc, employee)
-
-    except Exception as e:
-        # Handle ValidationError separately
-        if isinstance(e, frappe.exceptions.ValidationError):
-            raise
-
-        # Critical validation error - log and throw
-        get_logger().exception(f"Error validating salary slip {getattr(doc, 'name', 'New')}: {e}")
-        frappe.throw(_("Could not validate salary slip: {0}").format(str(e)))
-
-
-def on_submit_salary_slip(doc: SalarySlipDoc, method: Optional[str] = None) -> None:
-    """
-    Event hook for Salary Slip submission.
-    Updates related tax and benefit documents.
-    Only processes documents that are relevant to PPh 21 tax calculations.
-
-    Args:
-        doc: The Salary Slip document
-        method: Method name (not used)
-    """
-    try:
-        # Verify BPJS fields one last time before submission
-        _verify_bpjs_fields(doc)
-
-        # Verify settings for TER if using TER method
-        if getattr(doc, "is_using_ter", 0):
-            # Verify TER category is set - warning only
-            if not getattr(doc, "ter_category", ""):
-                get_logger().warning(f"Using TER but no category set for {doc.name}")
-                frappe.msgprint(_("Warning: Using TER but no category set"), indicator="orange")
-
-            # Verify TER rate is set - warning only
-            if not getattr(doc, "ter_rate", 0):
-                get_logger().warning(f"Using TER but no rate set for {doc.name}")
-                frappe.msgprint(_("Warning: Using TER but no rate set"), indicator="orange")
-
-        # Check if the salary slip has PPh 21 component
-        # Only process tax summary updates for salary slips with PPh 21 component
-        if has_pph21_component(doc):
-            get_logger().info(f"Salary slip {doc.name} has PPh 21 component, updating tax summary")
-
-            # Enqueue tax summary creation/update job
-            frappe.enqueue(
-                method="payroll_indonesia.payroll_indonesia.doctype.employee_tax_summary.employee_tax_summary.create_from_salary_slip",
-                queue="long",
-                timeout=600,
-                salary_slip=doc.name,
-                is_async=True,
-                job_name=f"tax_summary_update_{doc.name}",
-                now=False,  # Run in background
-            )
-
-            # Add note about queued job if payroll_note field exists
-            if hasattr(doc, "payroll_note"):
-                note = f"Tax summary update queued in background job: tax_summary_update_{doc.name}"
-                current_note = getattr(doc, "payroll_note", "")
-
-                if current_note:
-                    new_note = f"{current_note}\n{note}"
-                else:
-                    new_note = note
-
-                try:
-                    doc.db_set("payroll_note", new_note, update_modified=False)
-                except Exception as e:
-                    get_logger().warning(f"Could not update payroll note: {e}")
-        else:
-            get_logger().info(
-                f"Salary slip {doc.name} doesn't have PPh 21 component, skipping tax summary update"
-            )
-
-    except Exception as e:
-        # Handle ValidationError separately
-        if isinstance(e, frappe.exceptions.ValidationError):
-            raise
-
-        # Critical submission error - log and throw
-        get_logger().exception(f"Error processing salary slip submission for {doc.name}: {e}")
-        frappe.throw(_("Error processing salary slip submission: {0}").format(str(e)))
-
-
-def on_cancel_salary_slip(doc: SalarySlipDoc, method: Optional[str] = None) -> None:
-    """
-    Event hook for Salary Slip cancellation.
-    Reverts related document changes.
-    Only processes documents that are or were relevant to PPh 21 tax calculations.
-
-    Args:
-        doc: The Salary Slip document
-        method: Method name (not used)
-    """
-    try:
-        # Check if the salary slip has or had a PPh 21 component
-        # For cancellation, we check using a more thorough approach since the
-        # component might have been present in the original submission
-        has_tax_component = has_pph21_component(doc)
-
-        # Also check if a tax summary exists for this employee and period
-        # since we might need to update it even if the PPh 21 component is no longer visible
-        tax_summary_exists = False
-        try:
-            year = getdate(doc.end_date).year if hasattr(doc, "end_date") and doc.end_date else None
-            if year and hasattr(doc, "employee") and doc.employee:
-                tax_summary_exists = frappe.db.exists(
-                    "Employee Tax Summary", {"employee": doc.employee, "year": year}
-                )
-        except Exception as e:
-            get_logger().warning(f"Error checking for existing tax summary: {e}")
-
-        # Only process if the slip has PPh 21 component or a tax summary exists
-        if has_tax_component or tax_summary_exists:
-            get_logger().info(
-                f"Processing tax summary reversion for {doc.name}. "
-                f"Has PPh21: {has_tax_component}, Tax summary exists: {tax_summary_exists}"
-            )
-
-            # Determine tax year
-            year = None
-            if hasattr(doc, "end_date") and doc.end_date:
-                year = getdate(doc.end_date).year
-
-            if not year:
-                get_logger().warning(
-                    f"Could not determine year for tax summary reversion: {doc.name}"
-                )
-                return
-
-            # Enqueue tax summary reversion job
-            frappe.enqueue(
-                method="payroll_indonesia.payroll_indonesia.doctype.employee_tax_summary.employee_tax_summary.update_on_salary_slip_cancel",
-                queue="long",
-                timeout=300,
-                salary_slip=doc.name,
-                year=year,
-                is_async=True,
-                job_name=f"tax_summary_revert_{doc.name}",
-                now=False,  # Run in background
-            )
-
-            # Add note about queued job if payroll_note field exists
-            if hasattr(doc, "payroll_note"):
-                note = (
-                    f"Tax summary reversion queued in background job: tax_summary_revert_{doc.name}"
-                )
-                current_note = getattr(doc, "payroll_note", "")
-
-                if current_note:
-                    new_note = f"{current_note}\n{note}"
-                else:
-                    new_note = note
-
-                try:
-                    doc.db_set("payroll_note", new_note, update_modified=False)
-                except Exception as e:
-                    get_logger().warning(f"Could not update payroll note: {e}")
-        else:
-            get_logger().info(
-                f"Salary slip {doc.name} has no PPh 21 component and no tax summary exists, "
-                f"skipping tax summary reversion"
-            )
-
-    except Exception as e:
-        # Handle ValidationError separately
-        if isinstance(e, frappe.exceptions.ValidationError):
-            raise
-
-        # Critical cancellation error - log and throw
-        get_logger().exception(f"Error processing salary slip cancellation for {doc.name}: {e}")
-        frappe.throw(_("Error processing salary slip cancellation: {0}").format(str(e)))
-
-
-def after_insert_salary_slip(doc: SalarySlipDoc, method: Optional[str] = None) -> None:
-    """
-    Event hook that runs after a Salary Slip is created.
-    Initializes custom fields required for Indonesian payroll.
-
-    Args:
-        doc: The Salary Slip document
-        method: Method name (not used)
-    """
-    try:
-        # Handle initialization only for Salary Slip documents
-        if doc.doctype != "Salary Slip":
-            return
-
-        # Initialize base fields
-        _initialize_payroll_fields(doc)
-
-        # Initialize tax ID fields
-        set_tax_ids_from_employee(doc)
-
-    except Exception as e:
-        # Non-critical post-creation error - log and continue
-        get_logger().warning(
-            f"Error in post-creation processing for {getattr(doc, 'name', 'New')}: {e}"
-        )
-        frappe.msgprint(
-            _("Warning: Error during post-creation processing: {0}").format(str(e)),
-            indicator="orange",
-        )
-
-
-def _initialize_payroll_fields(doc: SalarySlipDoc) -> Dict[str, Any]:
-    """
-    Initialize additional payroll fields with default values.
-    Ensures all required fields exist with proper default values.
-
-    Args:
-        doc: The Salary Slip document
+        slip: Salary slip document
 
     Returns:
-        Dict[str, Any]: Dictionary of default values used
+        Dict[str, Any]: Updated component details
     """
     try:
-        defaults = {
-            "biaya_jabatan": 0,
-            "netto": 0,
-            "total_bpjs": 0,
-            "kesehatan_employee": 0,
-            "jht_employee": 0,
-            "jp_employee": 0,
-            "is_using_ter": 0,
-            "ter_rate": 0,
-            "ter_category": "",
-            "koreksi_pph21": 0,
-            "payroll_note": "",
-            "npwp": "",
-            "ktp": "",
-            "is_final_gabung_suami": 0,
-        }
+        result = {}
 
-        # Set defaults for fields that don't exist or are None
-        for field, default in defaults.items():
-            if not hasattr(doc, field) or getattr(doc, field) is None:
-                setattr(doc, field, default)
-                # Try to use db_set for persistence
-                try:
-                    doc.db_set(field, default, update_modified=False)
-                except Exception:
-                    # Silently continue if db_set fails (e.g. for new docs)
-                    pass
+        # Calculate BPJS components
+        bpjs_components = bpjs_calc.calculate_components(slip)
+        result["bpjs"] = bpjs_components
 
-        return defaults
+        # Update BPJS component amounts in deductions
+        _update_bpjs_components(slip, bpjs_components)
+
+        # Get configuration
+        cfg = get_live_config()
+
+        # Determine tax calculation method
+        is_december = _is_december_calculation(slip)
+        is_using_ter = _should_use_ter(slip, cfg)
+
+        # Calculate tax based on method
+        if is_december:
+            tax_result = tax_calc.calculate_december_pph(slip)
+            result["tax_method"] = "december"
+        elif is_using_ter:
+            tax_result = ter_calc.calculate_monthly_pph_with_ter(slip)
+            result["tax_method"] = "ter"
+        else:
+            tax_result = tax_calc.calculate_monthly_pph_progressive(slip)
+            result["tax_method"] = "progressive"
+
+        result["tax"] = tax_result
+
+        # Update PPh 21 component amount
+        _update_pph21_component(slip)
+
+        # Update total deduction
+        _update_totals(slip)
+
+        # Calculate YTD and YTM values
+        ytd_values = utils.calculate_ytd_and_ytm(slip)
+        result["ytd"] = ytd_values
+
+        # Set YTD values on slip
+        _set_ytd_values(slip, ytd_values)
+
+        # Queue tax summary update if needed
+        if _needs_tax_summary_update(slip):
+            _enqueue_tax_summary_update(slip)
+
+        logger.info(f"Updated components for slip {getattr(slip, 'name', 'unknown')}")
+        return result
 
     except Exception as e:
-        # Non-critical error during initialization - log and continue
-        get_logger().warning(
-            f"Error initializing payroll fields for {getattr(doc, 'name', 'New')}: {e}"
-        )
-        frappe.msgprint(
-            _("Warning: Error initializing payroll fields: {0}").format(str(e)), indicator="orange"
-        )
-        return {}
+        logger.exception(f"Error updating component amounts: {e}")
+        frappe.throw(_("Error updating component amounts: {0}").format(str(e)))
 
 
-def _verify_bpjs_fields(doc: SalarySlipDoc) -> None:
+def _update_bpjs_components(slip: Any, components: Dict[str, float]) -> None:
     """
-    Verify that BPJS-related fields are properly set and are numeric.
+    Update BPJS component amounts in salary slip deductions.
 
     Args:
-        doc: The Salary Slip document
-
-    Raises:
-        frappe.ValidationError: If any BPJS field is not numeric
+        slip: Salary slip document
+        components: Dictionary of calculated BPJS components
     """
+    if not hasattr(slip, "deductions") or not slip.deductions:
+        return
+
+    # Mapping of component names to values
+    component_map = {
+        "BPJS Kesehatan Employee": components.get("kesehatan_employee", 0),
+        "BPJS JHT Employee": components.get("jht_employee", 0),
+        "BPJS JP Employee": components.get("jp_employee", 0),
+    }
+
+    # Update components
+    for deduction in slip.deductions:
+        component_name = getattr(deduction, "salary_component", "")
+        if component_name in component_map:
+            deduction.amount = component_map[component_name]
+
+
+def _update_pph21_component(slip: Any) -> None:
+    """
+    Update PPh 21 component amount in salary slip deductions.
+
+    Args:
+        slip: Salary slip document
+    """
+    if not hasattr(slip, "deductions") or not slip.deductions:
+        return
+
+    pph21_amount = flt(getattr(slip, "pph21", 0))
+    pph21_found = False
+
+    # Look for existing PPh 21 component
+    for deduction in slip.deductions:
+        component_name = getattr(deduction, "salary_component", "")
+        if component_name == "PPh 21":
+            deduction.amount = pph21_amount
+            pph21_found = True
+            break
+
+    # Add PPh 21 component if not found and amount > 0
+    if not pph21_found and pph21_amount > 0:
+        slip.append(
+            "deductions",
+            {"salary_component": "PPh 21", "amount": pph21_amount, "default_amount": pph21_amount},
+        )
+
+
+def _update_totals(slip: Any) -> None:
+    """
+    Update total deduction and net pay in salary slip.
+
+    Args:
+        slip: Salary slip document
+    """
+    if hasattr(slip, "deductions") and slip.deductions:
+        # Calculate total deductions
+        total_deduction = sum(flt(d.amount) for d in slip.deductions)
+
+        # Update total_deduction field
+        if hasattr(slip, "total_deduction"):
+            slip.total_deduction = total_deduction
+
+        # Update net_pay field
+        if hasattr(slip, "gross_pay") and hasattr(slip, "net_pay"):
+            slip.net_pay = flt(slip.gross_pay) - total_deduction
+
+
+def _set_ytd_values(slip: Any, ytd_values: Dict[str, float]) -> None:
+    """
+    Set YTD values on salary slip.
+
+    Args:
+        slip: Salary slip document
+        ytd_values: Dictionary of YTD values
+    """
+    # Set YTD values if fields exist
+    if hasattr(slip, "ytd_gross_pay"):
+        slip.ytd_gross_pay = ytd_values.get("ytd_gross", 0)
+
+    if hasattr(slip, "ytd_bpjs_deductions"):
+        slip.ytd_bpjs_deductions = ytd_values.get("ytd_bpjs", 0)
+
+    if hasattr(slip, "ytd_pph21"):
+        slip.ytd_pph21 = ytd_values.get("ytd_pph21", 0)
+
+    # Try to persist values if document has been saved
+    if getattr(slip, "name", "").startswith("new-") is False:
+        try:
+            for field, key in [
+                ("ytd_gross_pay", "ytd_gross"),
+                ("ytd_bpjs_deductions", "ytd_bpjs"),
+                ("ytd_pph21", "ytd_pph21"),
+            ]:
+                if hasattr(slip, field):
+                    slip.db_set(field, ytd_values.get(key, 0), update_modified=False)
+        except Exception as e:
+            logger.warning(f"Could not persist YTD values: {e}")
+
+
+def _is_december_calculation(slip: Any) -> bool:
+    """
+    Determine if slip should use December calculation logic.
+
+    Args:
+        slip: Salary slip document
+
+    Returns:
+        bool: True if December or override flag is set
+    """
+    # Check explicit override flag
+    if getattr(slip, "is_december_override", 0):
+        return True
+
+    # Check if month is December
+    if hasattr(slip, "end_date") and slip.end_date:
+        end_date = getdate(slip.end_date)
+        return end_date.month == 12
+
+    return False
+
+
+def _should_use_ter(slip: Any, cfg: Dict[str, Any]) -> bool:
+    """
+    Determine if TER calculation should be used.
+
+    Args:
+        slip: Salary slip document
+        cfg: Configuration dictionary
+
+    Returns:
+        bool: True if TER should be used
+    """
+    # Check explicit flag first
+    if getattr(slip, "is_using_ter", 0):
+        return True
+
+    # Check config setting
+    use_ter = cfg.get("tax", {}).get("use_ter_by_default", 0)
+
+    # Check employee category if needed
+    if use_ter and hasattr(slip, "employee_doc"):
+        emp_category = getattr(slip.employee_doc, "employee_category", "")
+        excluded_categories = cfg.get("tax", {}).get("ter_excluded_categories", [])
+
+        if emp_category in excluded_categories:
+            return False
+
+    return bool(use_ter)
+
+
+def _needs_tax_summary_update(slip: Any) -> bool:
+    """
+    Check if tax summary needs to be updated.
+
+    Args:
+        slip: Salary slip document
+
+    Returns:
+        bool: True if tax summary update is needed
+    """
+    # Check if slip has PPh 21 component
+    has_pph21 = False
+    pph21_amount = flt(getattr(slip, "pph21", 0))
+
+    if pph21_amount > 0:
+        has_pph21 = True
+    else:
+        # Check deductions
+        if hasattr(slip, "deductions") and slip.deductions:
+            for d in slip.deductions:
+                if getattr(d, "salary_component", "") == "PPh 21" and flt(d.amount) > 0:
+                    has_pph21 = True
+                    break
+
+    # Check if slip has BPJS component
+    has_bpjs = False
+    bpjs_total = flt(getattr(slip, "total_bpjs", 0))
+
+    if bpjs_total > 0:
+        has_bpjs = True
+    else:
+        # Check deductions
+        if hasattr(slip, "deductions") and slip.deductions:
+            for d in slip.deductions:
+                if any(
+                    bpjs_type in getattr(d, "salary_component", "")
+                    for bpjs_type in ["BPJS Kesehatan", "BPJS JHT", "BPJS JP"]
+                ):
+                    has_bpjs = True
+                    break
+
+    return has_pph21 or has_bpjs
+
+
+def _enqueue_tax_summary_update(slip: Any) -> None:
+    """
+    Enqueue a background job to update the tax summary.
+
+    Args:
+        slip: Salary slip document
+    """
+    # Check document status
+    if getattr(slip, "docstatus", 0) != 1:  # 1 = Submitted
+        logger.debug(f"Skip tax summary update for non-submitted slip {slip.name}")
+        return
+
+    # Enqueue the job
+    frappe.enqueue(
+        "payroll_indonesia.payroll_indonesia.doctype.employee_tax_summary."
+        "employee_tax_summary.create_from_salary_slip",
+        queue="long",
+        timeout=600,
+        salary_slip=slip.name,
+        is_async=True,
+        job_name=f"tax_summary_update_{slip.name}",
+        now=False,  # Run in background
+    )
+
+    logger.info(f"Queued tax summary update for slip {slip.name}")
+
+    # Add note to payroll_note field if it exists
+    if hasattr(slip, "payroll_note"):
+        note = f"Tax summary update queued (job: tax_summary_update_{slip.name})"
+
+        try:
+            current_note = getattr(slip, "payroll_note", "")
+            new_note = f"{current_note}\n{note}" if current_note else note
+            slip.db_set("payroll_note", new_note, update_modified=False)
+        except Exception as e:
+            logger.warning(f"Could not update payroll note: {e}")
+
+
+def initialize_fields(slip: Any) -> None:
+    """
+    Initialize additional fields required for Indonesian payroll.
+
+    Args:
+        slip: Salary slip document
+    """
+    default_fields = {
+        "biaya_jabatan": 0,
+        "netto": 0,
+        "total_bpjs": 0,
+        "kesehatan_employee": 0,
+        "jht_employee": 0,
+        "jp_employee": 0,
+        "is_using_ter": 0,
+        "ter_rate": 0,
+        "ter_category": "",
+        "koreksi_pph21": 0,
+        "payroll_note": "",
+        "npwp": "",
+        "ktp": "",
+        "ytd_gross_pay": 0,
+        "ytd_bpjs_deductions": 0,
+        "ytd_pph21": 0,
+    }
+
+    # Set default values for fields
+    for field, default in default_fields.items():
+        if not hasattr(slip, field) or getattr(slip, field) is None:
+            setattr(slip, field, default)
+
+            # Try to persist with db_set if possible
+            if getattr(slip, "name", "").startswith("new-") is False:
+                try:
+                    slip.db_set(field, default, update_modified=False)
+                except Exception:
+                    pass  # Ignore errors for unsaved documents
+
+
+def set_tax_ids_from_employee(slip: Any) -> None:
+    """
+    Set tax ID fields from employee record.
+
+    Args:
+        slip: Salary slip document
+    """
+    if not hasattr(slip, "employee") or not slip.employee:
+        return
+
+    # Get employee tax IDs
+    employee_data = frappe.db.get_value("Employee", slip.employee, ["npwp", "ktp"], as_dict=True)
+
+    if not employee_data:
+        return
+
+    # Set NPWP if available
+    if hasattr(slip, "npwp") and not slip.npwp and employee_data.npwp:
+        slip.npwp = employee_data.npwp
+
+        # Try to persist
+        if getattr(slip, "name", "").startswith("new-") is False:
+            try:
+                slip.db_set("npwp", employee_data.npwp, update_modified=False)
+            except Exception:
+                pass
+
+    # Set KTP if available
+    if hasattr(slip, "ktp") and not slip.ktp and employee_data.ktp:
+        slip.ktp = employee_data.ktp
+
+        # Try to persist
+        if getattr(slip, "name", "").startswith("new-") is False:
+            try:
+                slip.db_set("ktp", employee_data.ktp, update_modified=False)
+            except Exception:
+                pass
+
+
+def verify_slip_components(slip: Any) -> Dict[str, Any]:
+    """
+    Verify that all required components are properly set in the salary slip.
+
+    Args:
+        slip: Salary slip document
+
+    Returns:
+        Dict[str, Any]: Verification results
+    """
+    result = {"status": "success", "messages": [], "has_errors": False}
+
+    # Verify BPJS fields
     bpjs_fields = ["kesehatan_employee", "jht_employee", "jp_employee", "total_bpjs"]
 
     for field in bpjs_fields:
-        if not hasattr(doc, field):
-            frappe.throw(
-                _("Missing BPJS field: {0}. Please check custom fields configuration.").format(
-                    field
-                ),
-                title=_("Configuration Error"),
-            )
+        if not hasattr(slip, field):
+            result["messages"].append(f"Missing BPJS field: {field}")
+            result["has_errors"] = True
+            result["status"] = "error"
+        elif getattr(slip, field) is None:
+            result["messages"].append(f"BPJS field {field} is None")
+            result["has_errors"] = True
+            result["status"] = "error"
 
-        value = getattr(doc, field)
-        if value is None or not isinstance(value, (int, float)):
-            frappe.throw(
-                _("BPJS field {0} must be numeric. Current value: {1}").format(field, str(value)),
-                title=_("Invalid BPJS Field"),
-            )
+    # Verify TER settings if using TER
+    if getattr(slip, "is_using_ter", 0):
+        if not getattr(slip, "ter_category", ""):
+            result["messages"].append("Using TER but no category set")
+            result["status"] = "warning"
 
+        if not getattr(slip, "ter_rate", 0):
+            result["messages"].append("Using TER but no rate set")
+            result["status"] = "warning"
 
-def _get_employee_doc(doc: SalarySlipDoc) -> EmployeeDoc:
-    """
-    Retrieves the complete Employee document for the current salary slip.
+    # Check if tax IDs are set if PPh 21 is calculated
+    if flt(getattr(slip, "pph21", 0)) > 0:
+        if not getattr(slip, "npwp", "") and not getattr(slip, "ktp", ""):
+            result["messages"].append("PPh 21 calculated but no NPWP or KTP set")
+            result["status"] = "warning"
 
-    Args:
-        doc: The Salary Slip document
-
-    Returns:
-        Employee document with all fields
-
-    Raises:
-        frappe.ValidationError: If employee cannot be found or retrieved
-    """
-    if not hasattr(doc, "employee") or not doc.employee:
-        # Critical validation error - employee is required
-        frappe.throw(_("Salary Slip must have an employee assigned"), title=_("Missing Employee"))
-
-    try:
-        return frappe.get_doc("Employee", doc.employee)
-    except Exception as e:
-        # Critical validation error - employee must exist
-        get_logger().exception(
-            f"Error retrieving Employee {doc.employee} for salary slip "
-            f"{getattr(doc, 'name', 'New')}: {e}"
-        )
-        frappe.throw(
-            _("Could not retrieve Employee {0}: {1}").format(doc.employee, str(e)),
-            title=_("Employee Not Found"),
-        )
-
-
-def set_tax_ids_from_employee(doc: SalarySlipDoc) -> None:
-    """
-    Set tax ID fields (NPWP, KTP) from employee record.
-
-    Args:
-        doc: The Salary Slip document
-    """
-    try:
-        if not hasattr(doc, "employee") or not doc.employee:
-            return
-
-        # Get NPWP and KTP from employee if they're not already set
-        if hasattr(doc, "npwp") and not doc.npwp:
-            employee_npwp = frappe.db.get_value("Employee", doc.employee, "npwp")
-            if employee_npwp:
-                doc.npwp = employee_npwp
-                doc.db_set("npwp", employee_npwp, update_modified=False)
-
-        if hasattr(doc, "ktp") and not doc.ktp:
-            employee_ktp = frappe.db.get_value("Employee", doc.employee, "ktp")
-            if employee_ktp:
-                doc.ktp = employee_ktp
-                doc.db_set("ktp", employee_ktp, update_modified=False)
-
-    except Exception as e:
-        # Non-critical error - log and continue
-        get_logger().warning(
-            f"Error setting tax IDs from employee for {getattr(doc, 'name', 'New')}: {e}"
-        )
-        frappe.msgprint(
-            _("Warning: Could not set tax IDs from employee record: {0}").format(str(e)),
-            indicator="orange",
-        )
-
-
-def clear_caches() -> Dict[str, str]:
-    """
-    Clear all caches related to salary slip and tax calculations.
-    This function is used by scheduler events and can be called manually.
-
-    Returns:
-        Dict[str, str]: Operation status and message
-    """
-    try:
-        # Use the centralized cache clearing function
-        clear_all_caches()
-
-        # Schedule next cache clear in 30 minutes
-        schedule_cache_clearing(minutes=30)
-
-        # Log success
-        get_logger().info("Salary slip caches cleared successfully")
-        return {"status": "success", "message": "All caches cleared successfully"}
-
-    except Exception as e:
-        # Non-critical error during cache clearing - log and return error
-        get_logger().exception(f"Error clearing caches: {e}")
-        return {"status": "error", "message": f"Error clearing caches: {str(e)}"}
-
-
-def calculate_bpjs_for_employee(
-    employee_id: str, base_salary: Optional[float] = None, slip: Optional[SalarySlipDoc] = None
-) -> Dict[str, float]:
-    """
-    Calculate BPJS components for an employee.
-    Updated to use the new BPJS calculation function.
-
-    Args:
-        employee_id: Employee ID to calculate for
-        base_salary: Optional base salary amount
-        slip: Optional Salary Slip document to update
-
-    Returns:
-        Dict[str, float]: Calculated BPJS values
-    """
-    try:
-        # Get employee document
-        employee = frappe.get_doc("Employee", employee_id)
-
-        # If base salary not provided, try to get from employee
-        if base_salary is None or base_salary <= 0:
-            if hasattr(employee, "gross_salary") and employee.gross_salary > 0:
-                base_salary = flt(employee.gross_salary)
-            else:
-                # Use default from existing configurations
-                from payroll_indonesia.constants import DEFAULT_UMR
-
-                base_salary = DEFAULT_UMR
-                get_logger().info(
-                    f"No base salary provided for {employee_id}, using DEFAULT_UMR: {DEFAULT_UMR}"
-                )
-
-        # Use the new hitung_bpjs function with the doc parameter
-        bpjs_values = hitung_bpjs(employee, base_salary, doc=slip)
-
-        # If slip provided, verify BPJS fields
-        if slip:
-            _verify_bpjs_fields(slip)
-
-        return bpjs_values
-
-    except Exception as e:
-        get_logger().exception(f"Error calculating BPJS for employee {employee_id}: {e}")
-        frappe.throw(_("Error calculating BPJS: {0}").format(str(e)))
+    return result

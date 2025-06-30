@@ -1,28 +1,27 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
+# Last modified: 2025-06-29 04:11:36 by dannyaudian
 
 from __future__ import unicode_literals
 
-# Basic app configuration
+# ❶ Basic app configuration
 app_name = "payroll_indonesia"
 app_title = "Payroll Indonesia"
 app_publisher = "PT. Innovasi Terbaik Bangsa"
-app_description = "Payroll module for Indonesian companies with local regulatory features"
+app_description = "Payroll module for Indonesian companies with local regulations"
 app_email = "danny.a.pratama@cao-group.co.id"
+app_icon = "octicon octicon-file-directory"
 app_license = "GPL-3"
 app_version = "0.1.0"
 required_apps = ["erpnext", "hrms"]
 
-# Setup functions
-before_install = "payroll_indonesia.install.before_install"
-after_install = "payroll_indonesia.install.after_install"
-# before_migrate = "payroll_indonesia.install.create_required_doctypes"
-after_migrate = [
-    "payroll_indonesia.install.after_migrate",
-    # Panggil fungsi yang tidak memerlukan parameter
-    "payroll_indonesia.fixtures.setup.setup_all_accounts",
-]
+# ❷ Install hooks
+before_install = "payroll_indonesia.fixtures.setup.before_install"
+after_install = "payroll_indonesia.fixtures.setup.after_install"
+after_sync = "payroll_indonesia.fixtures.setup.after_sync"
+after_migrate = "payroll_indonesia.fixtures.setup.setup_all_accounts"
+
 # List view JS
 doctype_list_js = {
     "BPJS Payment Summary": "payroll_indonesia/doctype/bpjs_payment_summary/bpjs_payment_summary_list.js",
@@ -30,20 +29,21 @@ doctype_list_js = {
     "BPJS Account Mapping": "payroll_indonesia/doctype/bpjs_account_mapping/bpjs_account_mapping_list.js",
 }
 
-# Document Events - primary hooks for document lifecycle
+# ❹ Document Events - primary hooks for document lifecycle
 doc_events = {
     "Employee": {
         "validate": "payroll_indonesia.override.employee.validate",
         "on_update": "payroll_indonesia.override.employee.on_update",
     },
     "Payroll Entry": {
-        "before_validate": "payroll_indonesia.override.payroll_entry_functions.before_validate"
+        "validate": "payroll_indonesia.override.payroll_entry.validate",
+        "on_submit": "payroll_indonesia.override.payroll_entry.on_submit",
     },
     "Salary Slip": {
-        "validate": "payroll_indonesia.override.salary_slip_functions.validate_salary_slip",
-        "on_submit": "payroll_indonesia.override.salary_slip_functions.on_submit_salary_slip",
-        "on_cancel": "payroll_indonesia.override.salary_slip_functions.on_cancel_salary_slip",
-        "after_insert": "payroll_indonesia.override.salary_slip_functions.after_insert_salary_slip",
+        "validate": "payroll_indonesia.override.salary_slip_functions.update_component_amount",
+        "on_submit": "payroll_indonesia.override.salary_slip.payroll_controller.on_submit",
+        "on_cancel": "payroll_indonesia.override.salary_slip.payroll_controller.on_cancel",
+        "after_insert": "payroll_indonesia.override.salary_slip_functions.initialize_fields",
     },
     "PPh 21 Settings": {
         "on_update": "payroll_indonesia.payroll_indonesia.tax.pph21_settings.on_update"
@@ -56,21 +56,22 @@ doc_events = {
         "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.validate",
         "on_update": "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.on_update",
     },
-    # "BPJS Payment Component": {
-    #     "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_component.bpjs_payment_component.validate",
-    #     "on_submit": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_component.bpjs_payment_component.on_submit",
-    # },
     "BPJS Payment Summary": {
         "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_summary.validate",
         "on_submit": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_summary.on_submit",
         "on_cancel": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_summary.on_cancel",
     },
-    "Payment Entry": {
-        "on_submit": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.payment_hooks.payment_entry_on_submit",
-        "on_cancel": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.payment_hooks.payment_entry_on_cancel",
+    "Company": {
+        "after_insert": "payroll_indonesia.fixtures.setup.setup_company_accounts",
+        "on_update": "payroll_indonesia.fixtures.setup.setup_company_accounts",
     },
-    "Account": {"on_update": "payroll_indonesia.payroll_indonesia.account_hooks.account_on_update"},
-    "Company": {"after_insert": "payroll_indonesia.fixtures.setup.setup_company_accounts"},
+}
+
+# ❸ Override DocType classes
+doctype_class = {
+    "Salary Slip": "payroll_indonesia.override.salary_slip.IndonesiaSalarySlip",
+    "Payroll Entry": "payroll_indonesia.override.payroll_entry.CustomPayrollEntry",
+    "Employee": "payroll_indonesia.override.employee.EmployeeOverride",
 }
 
 # Fixtures - dengan filter sesuai dengan kebutuhan
@@ -81,7 +82,6 @@ fixtures = [
     {"doctype": "Workspace", "filters": [["module", "=", "Payroll Indonesia"]]},
     {"doctype": "Report", "filters": [["module", "=", "Payroll Indonesia"]]},
     {"doctype": "Print Format", "filters": [["name", "in", ["BPJS Payment Summary Report"]]]},
-    # {"doctype": "Doctype",  "filters": [["name", "in", ["BPJS Payment Summary","BPJS Payment Summary Detail"]]]},
     # Master Data
     {"doctype": "Supplier Group", "filters": [["name", "in", ["BPJS Provider", "Tax Authority"]]]},
     {
@@ -140,62 +140,60 @@ fixtures = [
     },
 ]
 
-# Scheduler tasks - Updated with correct paths and added cache clearing for salary_slip
+# ❺ Scheduler tasks
 scheduler_events = {
-    "daily": [
-        "payroll_indonesia.utilities.cache_utils.clear_all_caches",
-        "payroll_indonesia.utilities.cache_utils.clear_salary_slip_caches",
-    ],
+    "daily": ["payroll_indonesia.scheduler.tasks.daily_job"],
+    "monthly": ["payroll_indonesia.scheduler.tasks.monthly_job"],
+    "yearly": ["payroll_indonesia.scheduler.tasks.yearly_job"],
     "cron": {
-        "0 */4 * * *": ["payroll_indonesia.utilities.cache_utils.clear_all_caches"],
-        "30 1 * * *": ["payroll_indonesia.utilities.cache_utils.clear_salary_slip_caches"],
+        "0 */4 * * *": ["payroll_indonesia.scheduler.tasks.clear_caches"],
+        "30 1 * * *": ["payroll_indonesia.scheduler.tasks.cleanup_logs"],
     },
-    "monthly": ["payroll_indonesia.payroll_indonesia.tax.monthly_tasks.update_tax_summaries"],
-    "yearly": ["payroll_indonesia.payroll_indonesia.tax.yearly_tasks.prepare_tax_report"],
 }
 
-# Jinja template methods - only expose read-only and safe functions
+# ❻ Authentication hooks
+authentication_hooks = "payroll_indonesia.override.auth_hooks.validate_login"
+
+# ❼ Jinja template methods - only expose read-only and safe functions
 jinja = {
     "methods": [
-        # BPJS Settings & Functions
-        "payroll_indonesia.payroll_indonesia.utils.get_bpjs_settings",
-        "payroll_indonesia.payroll_indonesia.utils.calculate_bpjs_contributions",
+        # Configuration and Utils
+        "payroll_indonesia.config.config.get_live_config",
+        "payroll_indonesia.payroll_indonesia.utils.get_formatted_currency",
+        # Tax calculation methods
+        "payroll_indonesia.override.salary_slip.tax_calculator.get_ptkp_value",
+        "payroll_indonesia.override.salary_slip.ter_calculator.get_ter_rate",
+        # BPJS methods
+        "payroll_indonesia.override.salary_slip.bpjs_calculator.calculate_components",
         "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.get_mapping_for_company",
-        "payroll_indonesia.payroll_indonesia.bpjs.bpjs_calculation.hitung_bpjs",
-        # PPh 21 Settings & Functions
-        "payroll_indonesia.payroll_indonesia.utils.get_ptkp_settings",
-        "payroll_indonesia.payroll_indonesia.utils.get_ter_rate",
-        "payroll_indonesia.payroll_indonesia.utils.should_use_ter",
-        "payroll_indonesia.payroll_indonesia.utils.get_pph21_settings",
-        "payroll_indonesia.payroll_indonesia.utils.get_pph21_brackets",
-        # Tax Reporting Functions
-        "payroll_indonesia.payroll_indonesia.utils.get_ytd_tax_info",
-        "payroll_indonesia.payroll_indonesia.utils.get_spt_month",
-        # Utility Functions
-        "payroll_indonesia.override.salary_slip.base.get_formatted_currency",
-        "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_utils.get_formatted_currency",
+        # YTD methods
+        "payroll_indonesia.override.salary_slip.salary_utils.calculate_ytd_and_ytm",
     ]
 }
 
 # Hook to initialize module functionality after app startup
-after_app_init = "payroll_indonesia.override.salary_slip.setup_hooks"
+# after_app_init = "payroll_indonesia.startup.initialize"
 
 # Whitelist for client-side API calls
 whitelist_methods = [
+    # BPJS Payment API
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.create_payment_entry",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.get_employee_bpjs_details",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.get_summary_for_period",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_api.get_bpjs_suppliers",
+    # Tax Summary API
     "payroll_indonesia.payroll_indonesia.doctype.employee_tax_summary.employee_tax_summary.get_ytd_data_until_month",
+    # BPJS Account API
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.get_mapping_for_company",
     "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.create_default_mapping",
-    "payroll_indonesia.payroll_indonesia.bpjs.bpjs_calculation.update_all_bpjs_components",
-    "payroll_indonesia.payroll_indonesia.bpjs.bpjs_calculation.hitung_bpjs",
-    "payroll_indonesia.api.diagnose_salary_slip",
+    # API endpoints
     "payroll_indonesia.api.get_employee",
-    "payroll_indonesia.api.get_salary_slips_by_employee",
     "payroll_indonesia.api.get_salary_slip",
+    "payroll_indonesia.api.get_salary_slips_by_employee",
     "payroll_indonesia.api.get_recent_salary_slips",
+    "payroll_indonesia.api.diagnose_salary_slip",
+    "payroll_indonesia.api.calculate_bpjs",
+    "payroll_indonesia.api.calculate_tax",
 ]
 
 # Override whitelisted methods

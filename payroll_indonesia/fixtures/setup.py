@@ -5,10 +5,11 @@
 
 import frappe
 from frappe.utils import getdate, flt
+from frappe.exceptions import ValidationError
 
 # Import utility functions from centralized utils module
+from payroll_indonesia.config.config import get_config as get_default_config
 from payroll_indonesia.payroll_indonesia.utils import (
-    get_default_config,
     debug_log,
 )
 
@@ -23,6 +24,12 @@ __all__ = [
     "create_bpjs_supplier",
     "setup_salary_components",
     "display_installation_summary",
+    "setup_all_accounts",
+    "setup_company_accounts",
+    "update_ptkp_ter_mapping",
+    "setup_pph21_defaults",
+    "setup_pph21_ter",
+    "setup_income_tax_slab",
 ]
 
 
@@ -341,8 +348,6 @@ def setup_all_accounts():
     Returns:
         dict: Setup results
     """
-    from payroll_indonesia.payroll_indonesia.utils import get_default_config, debug_log
-
     try:
         debug_log("Starting account setup from migration hook", "Migration")
 
@@ -379,8 +384,6 @@ def setup_company_accounts(doc, method=None):
         doc: Company document
         method: Hook method (unused)
     """
-    from payroll_indonesia.payroll_indonesia.utils import debug_log, get_default_config
-
     try:
         debug_log(f"Setting up accounts for new company: {doc.name}", "Company Setup")
 
@@ -426,8 +429,6 @@ def setup_accounts(config=None, specific_company=None):
     Returns:
         dict: Setup results
     """
-    from payroll_indonesia.payroll_indonesia.utils import debug_log, get_default_config
-
     # Get config if not provided
     if config is None:
         config = get_default_config()
@@ -477,16 +478,25 @@ def setup_accounts(config=None, specific_company=None):
                 results["errors"].append(f"Failed to create expense parent for {company.name}")
                 continue
 
-            # Create BPJS liability accounts
-            _create_bpjs_liability_accounts(company.name, liability_parent, results)
+            # Create BPJS liability accounts from config
+            _create_bpjs_accounts_from_config(
+                company.name,
+                "bpjs_payable_accounts",
+                liability_parent,
+                "Liability",
+                config,
+                results,
+            )
 
-            # Create BPJS expense accounts
-            _create_bpjs_expense_accounts(company.name, expense_parent, results)
+            # Create BPJS expense accounts from config
+            _create_bpjs_accounts_from_config(
+                company.name, "bpjs_expense_accounts", expense_parent, "Expense", config, results
+            )
 
-            # Create payroll expense accounts from defaults.json
+            # Create payroll expense accounts from config
             _create_expense_accounts_from_config(company.name, config, results)
 
-            # Create payroll payable accounts from defaults.json
+            # Create payroll payable accounts from config
             _create_payable_accounts_from_config(company.name, config, results)
 
             debug_log(f"Completed account setup for company: {company.name}", "Account Setup")
@@ -507,6 +517,66 @@ def setup_accounts(config=None, specific_company=None):
     return results
 
 
+def _create_bpjs_accounts_from_config(company, account_key, parent, root_type, config, results):
+    """
+    Create BPJS accounts from configuration
+
+    Args:
+        company: Company name
+        account_key: Key in gl_accounts section of config
+        parent: Parent account
+        root_type: Root type (Liability or Expense)
+        config: Configuration dictionary
+        results: Results dictionary to update
+    """
+    from payroll_indonesia.payroll_indonesia.utils import create_account, debug_log
+
+    # Get accounts from config
+    accounts = config.get("gl_accounts", {}).get(account_key, {})
+
+    if not accounts:
+        error_msg = f"No {account_key} found in configuration"
+        debug_log(error_msg, "Account Setup")
+        results["errors"].append(error_msg)
+        raise ValidationError(error_msg)
+
+    account_type = "Payable" if root_type == "Liability" else "Expense Account"
+
+    # Create each account
+    for key, account_data in accounts.items():
+        try:
+            account_name = account_data.get("account_name", "")
+
+            if not account_name:
+                continue
+
+            debug_log(
+                f"Creating {root_type.lower()} account {account_name} for {company}",
+                "Account Setup",
+            )
+
+            account = create_account(
+                company=company,
+                account_name=account_name,
+                account_type=account_data.get("account_type", account_type),
+                parent=parent,
+                root_type=account_data.get("root_type", root_type),
+                is_group=0,
+            )
+
+            if account:
+                results["created"].append(account)
+                debug_log(f"Created {root_type.lower()} account: {account}", "Account Setup")
+            else:
+                results["skipped"].append(account_name)
+                debug_log(
+                    f"Account {account_name} already exists or creation failed", "Account Setup"
+                )
+        except Exception as e:
+            results["errors"].append(f"Error creating {account_name}: {str(e)}")
+            debug_log(f"Error creating {account_name}: {str(e)}", "Account Setup", trace=True)
+
+
 def _create_expense_accounts_from_config(company, config, results):
     """
     Create expense accounts from configuration
@@ -525,8 +595,10 @@ def _create_expense_accounts_from_config(company, config, results):
     # Get expense accounts from config
     expense_accounts = config.get("gl_accounts", {}).get("expense_accounts", {})
     if not expense_accounts:
-        debug_log("No expense accounts found in configuration", "Account Setup")
-        return
+        error_msg = "No expense_accounts found in configuration"
+        debug_log(error_msg, "Account Setup")
+        results["errors"].append(error_msg)
+        raise ValidationError(error_msg)
 
     # Find expense parent account
     parent = find_parent_account(company, "Expense Account", "Expense")
@@ -587,8 +659,10 @@ def _create_payable_accounts_from_config(company, config, results):
     # Get payable accounts from config
     payable_accounts = config.get("gl_accounts", {}).get("payable_accounts", {})
     if not payable_accounts:
-        debug_log("No payable accounts found in configuration", "Account Setup")
-        return
+        error_msg = "No payable_accounts found in configuration"
+        debug_log(error_msg, "Account Setup")
+        results["errors"].append(error_msg)
+        raise ValidationError(error_msg)
 
     # Find liability parent account
     parent = find_parent_account(company, "Tax", "Liability")
@@ -668,80 +742,6 @@ def _create_bpjs_expense_parent(company):
         )
 
     return parent
-
-
-def _create_bpjs_liability_accounts(company, parent, results):
-    """Create BPJS liability accounts"""
-    from payroll_indonesia.payroll_indonesia.utils import create_account, debug_log
-
-    # Accounts to create
-    accounts = [
-        ("BPJS Kesehatan Payable", "Payable"),
-        ("BPJS JHT Payable", "Payable"),
-        ("BPJS JP Payable", "Payable"),
-        ("BPJS JKK Payable", "Payable"),
-        ("BPJS JKM Payable", "Payable"),
-    ]
-
-    for account_name, account_type in accounts:
-        try:
-            debug_log(f"Creating {account_name} for {company}", "Account Setup")
-            account = create_account(
-                company=company,
-                account_name=account_name,
-                account_type=account_type,
-                parent=parent,
-                root_type="Liability",
-            )
-
-            if account:
-                results["created"].append(account)
-                debug_log(f"Created account: {account}", "Account Setup")
-            else:
-                results["skipped"].append(account_name)
-                debug_log(
-                    f"Account {account_name} already exists or creation failed", "Account Setup"
-                )
-        except Exception as e:
-            results["errors"].append(f"Error creating {account_name}: {str(e)}")
-            debug_log(f"Error creating {account_name}: {str(e)}", "Account Setup", trace=True)
-
-
-def _create_bpjs_expense_accounts(company, parent, results):
-    """Create BPJS expense accounts"""
-    from payroll_indonesia.payroll_indonesia.utils import create_account, debug_log
-
-    # Accounts to create
-    accounts = [
-        ("BPJS Kesehatan Expense", "Expense Account"),
-        ("BPJS JHT Expense", "Expense Account"),
-        ("BPJS JP Expense", "Expense Account"),
-        ("BPJS JKK Expense", "Expense Account"),
-        ("BPJS JKM Expense", "Expense Account"),
-    ]
-
-    for account_name, account_type in accounts:
-        try:
-            debug_log(f"Creating {account_name} for {company}", "Account Setup")
-            account = create_account(
-                company=company,
-                account_name=account_name,
-                account_type=account_type,
-                parent=parent,
-                root_type="Expense",
-            )
-
-            if account:
-                results["created"].append(account)
-                debug_log(f"Created account: {account}", "Account Setup")
-            else:
-                results["skipped"].append(account_name)
-                debug_log(
-                    f"Account {account_name} already exists or creation failed", "Account Setup"
-                )
-        except Exception as e:
-            results["errors"].append(f"Error creating {account_name}: {str(e)}")
-            debug_log(f"Error creating {account_name}: {str(e)}", "Account Setup", trace=True)
 
 
 def create_supplier_group():
@@ -935,22 +935,9 @@ def setup_pph21_defaults(config):
         # Add PTKP values from config
         ptkp_values = config.get("ptkp", {})
         if not ptkp_values:
-            debug_log("No PTKP values found in config, using defaults", "PPh 21 Setup")
-            # Fallback to defaults
-            ptkp_values = {
-                "TK0": 54000000,
-                "TK1": 58500000,
-                "TK2": 63000000,
-                "TK3": 67500000,
-                "K0": 58500000,
-                "K1": 63000000,
-                "K2": 67500000,
-                "K3": 72000000,
-                "HB0": 112500000,
-                "HB1": 117000000,
-                "HB2": 121500000,
-                "HB3": 126000000,
-            }
+            error_msg = "No PTKP values found in configuration"
+            debug_log(error_msg, "PPh 21 Setup")
+            raise ValidationError(error_msg)
 
         # Add PTKP values
         for status, amount in ptkp_values.items():
@@ -983,15 +970,9 @@ def setup_pph21_defaults(config):
         # Add tax brackets from config
         tax_brackets = config.get("tax_brackets", [])
         if not tax_brackets:
-            debug_log("No tax brackets found in config, using defaults", "PPh 21 Setup")
-            # Fallback to defaults
-            tax_brackets = [
-                {"income_from": 0, "income_to": 60000000, "tax_rate": 5},
-                {"income_from": 60000000, "income_to": 250000000, "tax_rate": 15},
-                {"income_from": 250000000, "income_to": 500000000, "tax_rate": 25},
-                {"income_from": 500000000, "income_to": 5000000000, "tax_rate": 30},
-                {"income_from": 5000000000, "income_to": 0, "tax_rate": 35},
-            ]
+            error_msg = "No tax brackets found in configuration"
+            debug_log(error_msg, "PPh 21 Setup")
+            raise ValidationError(error_msg)
 
         for bracket in tax_brackets:
             settings.append(
@@ -1070,8 +1051,9 @@ def setup_pph21_ter(config, force_update=False):
         # Get TER rates from config
         ter_rates = config.get("ter_rates", {})
         if not ter_rates:
-            debug_log("No TER rates found in config", "TER Setup Error")
-            return False
+            error_msg = "No TER rates found in configuration"
+            debug_log(error_msg, "TER Setup Error")
+            raise ValidationError(error_msg)
 
         # Create TER rates
         count = 0
@@ -1207,15 +1189,9 @@ def setup_income_tax_slab(config):
         # Get tax brackets from config
         tax_brackets = config.get("tax_brackets", [])
         if not tax_brackets:
-            debug_log("No tax brackets found in config, using defaults", "Tax Slab Setup")
-            # Fallback to defaults
-            tax_brackets = [
-                {"income_from": 0, "income_to": 60000000, "tax_rate": 5},
-                {"income_from": 60000000, "income_to": 250000000, "tax_rate": 15},
-                {"income_from": 250000000, "income_to": 500000000, "tax_rate": 25},
-                {"income_from": 500000000, "income_to": 5000000000, "tax_rate": 30},
-                {"income_from": 5000000000, "income_to": 0, "tax_rate": 35},
-            ]
+            error_msg = "No tax brackets found in configuration"
+            debug_log(error_msg, "Tax Slab Setup")
+            raise ValidationError(error_msg)
 
         # Create tax slab
         tax_slab = frappe.new_doc("Income Tax Slab")
@@ -1297,8 +1273,9 @@ def setup_salary_components(config):
         # Get components from config
         components = config.get("salary_components", {})
         if not components:
-            debug_log("No salary components found in config", "Salary Component Setup")
-            return False
+            error_msg = "No salary components found in configuration"
+            debug_log(error_msg, "Salary Component Setup")
+            raise ValidationError(error_msg)
 
         # Process earnings and deductions
         success_count = 0

@@ -1,219 +1,65 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-16 08:33:58 by dannyaudian
+# Last modified: 2025-06-29 02:36:51 by dannyaudian
+
+"""
+Helper functions for Payroll Entry processing.
+"""
+
+import logging
+from typing import Any, Dict, List, Optional, Tuple
+
+# from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import frappe
-from frappe import _
-from frappe.utils import getdate, date_diff, cint
+
+# from frappe import _
+from frappe.utils import getdate, date_diff, flt
+
+from payroll_indonesia.config.config import get_live_config
+import payroll_indonesia.override.salary_slip.bpjs_calculator as bpjs_calc
+import payroll_indonesia.override.salary_slip.tax_calculator as tax_calc
+import payroll_indonesia.override.salary_slip.ter_calculator as ter_calc
+import payroll_indonesia.payroll_indonesia.validations as validations
+
+# if TYPE_CHECKING:
+#     # from frappe.model.document import Document
+#     from hrms.payroll.doctype.payroll_entry.payroll_entry import PayrollEntry
+#     from hrms.payroll.doctype.salary_slip.salary_slip import SalarySlip
+
+logger = logging.getLogger("payroll_entry_fn")
 
 
-def before_validate(doc, method=None):
+def is_december_calculation(entry: Any) -> bool:
     """
-    Event hook that runs before validating a Payroll Entry document.
-    This file is retained only for backward-compatible hook registration.
-
-    Since all validation logic has been centralized in CustomPayrollEntry class,
-    this simply calls doc.validate() to ensure proper validation flow.
-
-    This file can be safely removed in future versions once all hooks
-    are updated to use CustomPayrollEntry directly.
+    Determine if payroll should use December calculation logic.
 
     Args:
-        doc: The Payroll Entry document instance
-        method: The method being called (not used)
-    """
-    try:
-        # Call validate() which contains all centralized validation logic
-        if hasattr(doc, "validate") and callable(doc.validate):
-            doc.validate()
-    except Exception as e:
-        # Handle ValidationError separately
-        if isinstance(e, frappe.exceptions.ValidationError):
-            raise
-
-        # Log unexpected errors
-        frappe.log_error(
-            "Error in before_validate hook for Payroll Entry {0}: {1}".format(
-                doc.name if hasattr(doc, "name") else "New", str(e)
-            ),
-            "Payroll Entry Hook Error",
-        )
-        # This is not a user-initiated action, so throw to prevent silent failures
-        frappe.throw(_("Error in payroll entry validation hook: {0}").format(str(e)))
-
-
-def create_salary_slip(employee, payroll_entry, *, is_december_override=False):
-    """
-    Creates a salary slip for an employee based on the payroll entry.
-
-    Args:
-        employee: Employee details (dict with employee, employee_name, etc.)
-        payroll_entry: Payroll Entry document
-        is_december_override: Boolean flag for December processing (keyword-only argument)
+        entry: Payroll Entry document
 
     Returns:
-        Salary Slip document
+        bool: True if December or override flag is set
     """
-    # Check if salary slip already exists
-    existing_salary_slip = frappe.db.sql(
-        """
-        select name from `tabSalary Slip`
-        where docstatus != 2
-        and employee = %s
-        and start_date >= %s
-        and end_date <= %s
-        and company = %s
-    """,
-        (
-            employee.employee,
-            payroll_entry.start_date,
-            payroll_entry.end_date,
-            payroll_entry.company,
-        ),
-    )
+    # Check explicit override flag
+    if getattr(entry, "is_december_run", 0):
+        return True
 
-    if existing_salary_slip:
-        return frappe.get_doc("Salary Slip", existing_salary_slip[0][0])
+    # Check if month is December
+    if hasattr(entry, "start_date") and entry.start_date:
+        start_date = getdate(entry.start_date)
+        return start_date.month == 12
 
-    # Create new salary slip
-    slip = frappe.new_doc("Salary Slip")
-    slip.salary_slip_based_on_timesheet = payroll_entry.salary_slip_based_on_timesheet
-    slip.payroll_frequency = payroll_entry.payroll_frequency
-    slip.start_date = payroll_entry.start_date
-    slip.end_date = payroll_entry.end_date
-    slip.employee = employee.employee
-    slip.employee_name = employee.employee_name
-    slip.company = payroll_entry.company
-    slip.posting_date = payroll_entry.posting_date
-    slip.payroll_entry = payroll_entry.name
+    # Check month field if available
+    if getattr(entry, "month", 0) == 12:
+        return True
 
-    # Set the December override flag
-    slip.is_december_override = int(is_december_override)
-
-    # Get earnings and deductions
-    get_emp_and_working_day_details(slip)
-
-    # Set other salary slip fields
-    if hasattr(payroll_entry, "salary_structure") and payroll_entry.salary_structure:
-        slip.salary_structure = payroll_entry.salary_structure
-
-    # Set payment days
-    if hasattr(payroll_entry, "payment_days") and payroll_entry.payment_days:
-        slip.payment_days = payroll_entry.payment_days
-
-    # Set department if available
-    if hasattr(employee, "department") and employee.department:
-        slip.department = employee.department
-
-    # Set designation if available
-    if hasattr(employee, "designation") and employee.designation:
-        slip.designation = employee.designation
-
-    # Save and return the salary slip
-    slip.insert()
-
-    return slip
+    return False
 
 
-def get_emp_and_working_day_details(slip):
-    """
-    Calculates working days and payment days for a salary slip.
-    Also pulls default earnings and deductions from salary structure.
-
-    Args:
-        slip: Salary Slip document
-    """
-    if slip.employment_type == "Intern" or slip.employment_type == "Apprentice":
-        slip.payment_days = date_diff(slip.end_date, slip.start_date) + 1
-        return
-
-    # Get the employment details
-    joining_date, relieving_date = frappe.get_cached_value(
-        "Employee", slip.employee, ["date_of_joining", "relieving_date"]
-    )
-
-    # Get the payment days
-    payment_days = get_payment_days(
-        joining_date,
-        relieving_date,
-        slip.start_date,
-        slip.end_date,
-        slip.exclude_from_total_working_days,
-    )
-
-    # Set payment days
-    slip.payment_days = payment_days
-
-    # Get the salary structure
-    if not slip.salary_structure:
-        structure = get_salary_structure(
-            slip.employee, slip.posting_date, slip.payroll_frequency, slip.company
-        )
-        if structure:
-            slip.salary_structure = structure.name
-
-    # Get earnings and deductions
-    if slip.salary_structure:
-        from erpnext.payroll.doctype.salary_structure.salary_structure import (
-            get_salary_structure_details,
-        )
-
-        salary_structure_details = get_salary_structure_details(
-            slip.salary_structure, slip.payroll_frequency, slip.employee
-        )
-
-        # Set earnings
-        for earning in salary_structure_details.get("earnings", []):
-            slip.append("earnings", earning)
-
-        # Set deductions
-        for deduction in salary_structure_details.get("deductions", []):
-            slip.append("deductions", deduction)
-
-        # Set other details
-        if "ctc" in salary_structure_details:
-            slip.ctc = salary_structure_details.ctc
-
-        if "base" in salary_structure_details:
-            slip.base = salary_structure_details.base
-
-
-def get_payment_days(
-    joining_date, relieving_date, start_date, end_date, exclude_from_total_working_days=0
-):
-    """
-    Calculate payment days based on joining and relieving dates.
-
-    Args:
-        joining_date: Employee joining date
-        relieving_date: Employee relieving date
-        start_date: Payroll period start date
-        end_date: Payroll period end date
-        exclude_from_total_working_days: Days to exclude
-
-    Returns:
-        Payment days (float)
-    """
-    start_date = getdate(start_date)
-    end_date = getdate(end_date)
-    joining_date = getdate(joining_date) if joining_date else None
-    relieving_date = getdate(relieving_date) if relieving_date else None
-
-    # Adjust start date if employee joined after payroll start date
-    if joining_date and joining_date > start_date:
-        start_date = joining_date
-
-    # Adjust end date if employee relieved before payroll end date
-    if relieving_date and relieving_date < end_date:
-        end_date = relieving_date
-
-    # Calculate payment days
-    payment_days = date_diff(end_date, start_date) + 1 - exclude_from_total_working_days
-    return payment_days if payment_days > 0 else 0
-
-
-def get_salary_structure(employee, posting_date, payroll_frequency, company):
+def get_salary_structure(
+    employee: str, posting_date: str, payroll_frequency: str, company: str
+) -> Optional[Dict[str, Any]]:
     """
     Get active salary structure for an employee.
 
@@ -224,151 +70,388 @@ def get_salary_structure(employee, posting_date, payroll_frequency, company):
         company: Company
 
     Returns:
-        Salary Structure document or None
+        Salary Structure details or None
     """
-    # Get salary structure assignment
-    structure_assignment = frappe.db.sql(
+    # Query for salary structure assignment
+    structure = frappe.db.sql(
         """
-        select salary_structure
-        from `tabSalary Structure Assignment`
-        where employee = %s
-        and docstatus = 1
-        and %s between from_date and IFNULL(to_date, '2199-12-31')
+        SELECT sa.salary_structure
+        FROM `tabSalary Structure Assignment` sa
+        JOIN `tabSalary Structure` ss ON sa.salary_structure = ss.name
+        WHERE sa.employee = %s
+        AND sa.docstatus = 1
+        AND %s BETWEEN sa.from_date AND IFNULL(sa.to_date, '2199-12-31')
+        AND ss.docstatus = 1
+        AND ss.is_active = 'Yes'
+        AND ss.company = %s
+        AND IFNULL(ss.payroll_frequency, '') = %s
     """,
-        (employee, posting_date),
+        (employee, posting_date, company, payroll_frequency),
         as_dict=True,
     )
 
-    if structure_assignment:
-        # Get salary structure
-        structure = frappe.db.sql(
-            """
-            select name, docstatus
-            from `tabSalary Structure`
-            where name = %s
-            and docstatus = 1
-            and is_active = 'Yes'
-            and company = %s
-            and ifnull(payroll_frequency, '') = %s
-        """,
-            (structure_assignment[0].salary_structure, company, payroll_frequency),
-            as_dict=True,
-        )
+    if not structure:
+        return None
 
-        if structure:
-            return frappe.get_doc("Salary Structure", structure[0].name)
-
-    return None
+    # Get details of the salary structure
+    return frappe.get_doc("Salary Structure", structure[0].salary_structure)
 
 
-def create_salary_slips_for_employees(employees, payroll_entry, publish_progress=True):
+def calculate_payment_days(
+    start_date: str,
+    end_date: str,
+    joining_date: Optional[str] = None,
+    relieving_date: Optional[str] = None,
+    exclude_days: int = 0,
+) -> float:
     """
-    Creates salary slips for a list of employees
+    Calculate payment days based on joining and relieving dates.
 
     Args:
-        employees: List of employee details
-        payroll_entry: Payroll Entry document
-        publish_progress: Whether to publish progress updates
+        start_date: Payroll period start date
+        end_date: Payroll period end date
+        joining_date: Employee joining date
+        relieving_date: Employee relieving date
+        exclude_days: Days to exclude
 
     Returns:
-        List of created salary slips
+        float: Payment days
     """
-    salary_slips = []
+    # Convert to date objects
+    start = getdate(start_date)
+    end = getdate(end_date)
 
-    # Get December override from payroll entry
-    # _is_december_override = False
-    # if hasattr(payroll_entry, "should_run_as_december") and callable(
-    #     payroll_entry.should_run_as_december
-    # ):
-    #     _is_december_override = payroll_entry.should_run_as_december()
-    # elif hasattr(payroll_entry, "is_december_run"):
-    #     _is_december_override = bool(payroll_entry.get("is_december_run"))
+    # Adjust start date if employee joined after payroll start date
+    if joining_date:
+        joining = getdate(joining_date)
+        if joining > start:
+            start = joining
 
-    # Create salary slips
+    # Adjust end date if employee relieved before payroll end date
+    if relieving_date:
+        relieving = getdate(relieving_date)
+        if relieving < end:
+            end = relieving
+
+    # Calculate payment days
+    payment_days = date_diff(end, start) + 1 - exclude_days
+    return max(0, payment_days)
+
+
+def create_salary_slip(employee_data: Dict[str, Any], entry: Any) -> str:
+    """
+    Create a salary slip for a single employee.
+
+    Args:
+        employee_data: Employee details dictionary
+        entry: Payroll Entry document
+
+    Returns:
+        str: Name of created salary slip
+    """
+    # Check for existing salary slip
+    existing_slip = frappe.db.exists(
+        "Salary Slip",
+        {
+            "docstatus": ["!=", 2],  # Not cancelled
+            "employee": employee_data.get("employee"),
+            "start_date": entry.start_date,
+            "end_date": entry.end_date,
+            "company": entry.company,
+        },
+    )
+
+    if existing_slip:
+        logger.info(f"Salary slip already exists for {employee_data.get('employee')}")
+        return existing_slip
+
+    # Get employee details
+    employee_doc = frappe.get_doc("Employee", employee_data.get("employee"))
+
+    # Create new salary slip
+    slip = frappe.new_doc("Salary Slip")
+    slip.salary_slip_based_on_timesheet = getattr(entry, "salary_slip_based_on_timesheet", 0)
+    slip.payroll_frequency = entry.payroll_frequency
+    slip.start_date = entry.start_date
+    slip.end_date = entry.end_date
+    slip.employee = employee_data.get("employee")
+    slip.employee_name = employee_data.get("employee_name")
+    slip.company = entry.company
+    slip.posting_date = entry.posting_date
+    slip.payroll_entry = entry.name
+
+    # Set December override flag
+    slip.is_december_override = 1 if is_december_calculation(entry) else 0
+
+    # Add department and designation if available
+    if "department" in employee_data:
+        slip.department = employee_data.get("department")
+    if "designation" in employee_data:
+        slip.designation = employee_data.get("designation")
+
+    # Calculate payment days
+    joining_date = getattr(employee_doc, "date_of_joining", None)
+    relieving_date = getattr(employee_doc, "relieving_date", None)
+    exclude_days = getattr(entry, "exclude_from_total_working_days", 0)
+
+    slip.payment_days = calculate_payment_days(
+        entry.start_date, entry.end_date, joining_date, relieving_date, exclude_days
+    )
+
+    # Save the slip
+    slip.insert()
+    logger.info(f"Created salary slip {slip.name} for {slip.employee}")
+
+    return slip.name
+
+
+def make_slips_from_timesheets(entry: Any) -> List[str]:
+    """
+    Create salary slips from timesheet data.
+
+    Args:
+        entry: Payroll Entry document
+
+    Returns:
+        List[str]: List of created salary slip names
+    """
+    if not getattr(entry, "salary_slip_based_on_timesheet", 0):
+        logger.info("Payroll entry not based on timesheets, skipping")
+        return []
+
+    # Get employees with timesheets in the period
+    employees = frappe.db.sql(
+        """
+        SELECT DISTINCT employee, employee_name
+        FROM `tabTimesheet`
+        WHERE docstatus = 1
+        AND start_date >= %s
+        AND end_date <= %s
+        AND company = %s
+        AND (salary_slip IS NULL OR salary_slip = '')
+    """,
+        (entry.start_date, entry.end_date, entry.company),
+        as_dict=True,
+    )
+
+    if not employees:
+        logger.info("No employees with timesheets found for the period")
+        return []
+
+    created_slips = []
+
+    # Create salary slips for each employee
     for i, emp in enumerate(employees):
-        if publish_progress:
-            frappe.publish_progress(i * 100 / len(employees), title=_("Creating Salary Slips..."))
-
         try:
-            # Create args dict with is_december_override
-            args = {
-                "doctype": "Salary Slip",
-                "employee": emp.employee,
-                "employee_name": emp.employee_name,
-                "company": payroll_entry.company,
-                "posting_date": payroll_entry.posting_date,
-                "payroll_frequency": payroll_entry.payroll_frequency,
-                "start_date": payroll_entry.start_date,
-                "end_date": payroll_entry.end_date,
-                "payroll_entry": payroll_entry.name,
-                "salary_slip_based_on_timesheet": payroll_entry.salary_slip_based_on_timesheet,
-                "is_december_override": cint(payroll_entry.is_december_run),
-            }
+            # Create salary slip
+            slip_name = create_salary_slip(emp, entry)
+            if slip_name:
+                created_slips.append(slip_name)
 
-            # Add optional fields if available
-            if hasattr(emp, "department") and emp.department:
-                args["department"] = emp.department
+                # Update the timesheet to link to the salary slip
+                frappe.db.sql(
+                    """
+                    UPDATE `tabTimesheet`
+                    SET salary_slip = %s
+                    WHERE docstatus = 1
+                    AND start_date >= %s
+                    AND end_date <= %s
+                    AND company = %s
+                    AND employee = %s
+                    AND (salary_slip IS NULL OR salary_slip = '')
+                """,
+                    (slip_name, entry.start_date, entry.end_date, entry.company, emp.employee),
+                )
 
-            if hasattr(emp, "designation") and emp.designation:
-                args["designation"] = emp.designation
-
-            if hasattr(payroll_entry, "salary_structure") and payroll_entry.salary_structure:
-                args["salary_structure"] = payroll_entry.salary_structure
-
-            if hasattr(payroll_entry, "payment_days") and payroll_entry.payment_days:
-                args["payment_days"] = payroll_entry.payment_days
-
-            # Insert the document
-            salary_slip = frappe.get_doc(args).insert()
-            salary_slips.append(salary_slip.name)
-
-            # Log creation
-            frappe.db.commit()
-
+                frappe.db.commit()
         except Exception as e:
             frappe.db.rollback()
-            frappe.log_error(
-                f"Error creating salary slip for {emp.employee}: {str(e)}",
-                "Salary Slip Creation Error",
-            )
+            logger.exception(f"Error creating slip for {emp.employee}: {e}")
 
-    if publish_progress:
-        frappe.publish_progress(100, title=_("Salary Slips Created"))
-
-    return salary_slips
+    return created_slips
 
 
-def submit_salary_slips(salary_slips, payroll_entry):
+def validate_salary_slip(slip: Any) -> None:
     """
-    Submits created salary slips
+    Validate a salary slip, performing Indonesia-specific calculations.
 
     Args:
-        salary_slips: List of salary slip names
-        payroll_entry: Payroll Entry document
+        slip: Salary Slip document
+    """
+    # Validate employee data
+    validations.validate_employee_fields(slip.employee)
+
+    # Calculate BPJS components
+    # bpjs_components = bpjs_calc.calculate_components(slip)
+
+    # Calculate tax based on method
+    cfg = get_live_config()
+
+    # Determine tax calculation method
+    is_december = is_december_calculation(slip)
+    is_using_ter = getattr(slip, "is_using_ter", 0) or cfg.get("tax", {}).get(
+        "use_ter_by_default", 0
+    )
+
+    if is_december:
+        tax_calc.calculate_december_pph(slip)
+    elif is_using_ter:
+        ter_calc.calculate_monthly_pph_with_ter(slip)
+    else:
+        tax_calc.calculate_monthly_pph_progressive(slip)
+
+    # Update totals
+    if hasattr(slip, "total_deduction"):
+        bpjs = getattr(slip, "total_bpjs", 0)
+        pph21 = getattr(slip, "pph21", 0)
+        slip.total_deduction = flt(slip.total_deduction) + flt(bpjs) + flt(pph21)
+
+        # Update net pay
+        if hasattr(slip, "gross_pay") and hasattr(slip, "net_pay"):
+            slip.net_pay = flt(slip.gross_pay) - flt(slip.total_deduction)
+
+
+def submit_salary_slips(slip_names: List[str]) -> Tuple[List[str], List[str]]:
+    """
+    Submit the specified salary slips after validation.
+
+    Args:
+        slip_names: List of salary slip names to submit
 
     Returns:
-        Tuple of (submitted_ss, not_submitted_ss)
+        Tuple[List[str], List[str]]: Submitted and failed slip names
     """
-    submitted_ss = []
-    not_submitted_ss = []
+    submitted = []
+    failed = []
 
-    for i, ss_name in enumerate(salary_slips):
-        frappe.publish_progress(i * 100 / len(salary_slips), title=_("Submitting Salary Slips..."))
-
+    for slip_name in slip_names:
         try:
-            ss = frappe.get_doc("Salary Slip", ss_name)
-            if ss.net_pay < 0:
-                not_submitted_ss.append(ss_name)
-            else:
-                ss.submit()
-                submitted_ss.append(ss_name)
+            slip = frappe.get_doc("Salary Slip", slip_name)
 
+            # Validate before submission
+            validate_salary_slip(slip)
+
+            # Don't submit if net pay is negative
+            if getattr(slip, "net_pay", 0) < 0:
+                logger.warning(f"Slip {slip_name} has negative net pay, skipping")
+                failed.append(slip_name)
+                continue
+
+            # Submit the slip
+            slip.submit()
+            submitted.append(slip_name)
+            logger.info(f"Submitted salary slip {slip_name}")
+
+            frappe.db.commit()
         except Exception as e:
-            frappe.log_error(
-                f"Error submitting salary slip {ss_name}: {str(e)}", "Salary Slip Submission Error"
-            )
-            not_submitted_ss.append(ss_name)
+            frappe.db.rollback()
+            logger.exception(f"Error submitting slip {slip_name}: {e}")
+            failed.append(slip_name)
 
-    frappe.publish_progress(100, title=_("Salary Slips Submitted"))
+    return submitted, failed
 
-    return submitted_ss, not_submitted_ss
+
+def post_submit(entry: Any) -> Dict[str, Any]:
+    """
+    Process payroll entry after submission.
+
+    Args:
+        entry: Payroll Entry document
+
+    Returns:
+        Dict[str, Any]: Result summary
+    """
+    result = {"status": "success", "message": "", "submitted": 0, "failed": 0}
+
+    try:
+        # Get salary slips associated with this payroll entry
+        slip_names = frappe.db.get_list(
+            "Salary Slip", filters={"payroll_entry": entry.name, "docstatus": 0}, pluck="name"
+        )
+
+        if not slip_names:
+            result["message"] = "No salary slips found to process"
+            return result
+
+        # Submit the salary slips
+        submitted, failed = submit_salary_slips(slip_names)
+
+        # Update result
+        result["submitted"] = len(submitted)
+        result["failed"] = len(failed)
+
+        if failed:
+            result["status"] = "partial"
+            result["message"] = f"{len(submitted)} slips submitted, {len(failed)} failed"
+        else:
+            result["message"] = f"Successfully submitted {len(submitted)} salary slips"
+
+        # Update payroll entry with submission status
+        if hasattr(entry, "status"):
+            if not failed:
+                entry.status = "Submitted"
+            else:
+                entry.status = "Partially Submitted"
+
+            entry.submitted_salary_slips = len(submitted)
+            entry.failed_salary_slips = len(failed)
+            entry.save(ignore_permissions=True)
+
+        return result
+    except Exception as e:
+        logger.exception(f"Error in post_submit for {entry.name}: {e}")
+        return {"status": "error", "message": str(e), "submitted": 0, "failed": 0}
+
+
+def calculate_employer_contributions(entry: Any) -> Dict[str, float]:
+    """
+    Calculate total employer contributions for all salary slips.
+
+    Args:
+        entry: Payroll Entry document
+
+    Returns:
+        Dict[str, float]: Contribution amounts by type
+    """
+    # Get all submitted salary slips for this payroll entry
+    slip_names = frappe.db.get_list(
+        "Salary Slip", filters={"payroll_entry": entry.name, "docstatus": 1}, pluck="name"
+    )
+
+    if not slip_names:
+        return {}
+
+    # Initialize totals
+    totals = {
+        "bpjs_kesehatan": 0,
+        "bpjs_jht": 0,
+        "bpjs_jp": 0,
+        "bpjs_jkk": 0,
+        "bpjs_jkm": 0,
+        "total": 0,
+    }
+
+    # Process each slip
+    for slip_name in slip_names:
+        slip = frappe.get_doc("Salary Slip", slip_name)
+
+        # Calculate BPJS components
+        components = bpjs_calc.calculate_components(slip)
+
+        # Sum employer portions
+        totals["bpjs_kesehatan"] += flt(components.get("kesehatan_employer", 0))
+        totals["bpjs_jht"] += flt(components.get("jht_employer", 0))
+        totals["bpjs_jp"] += flt(components.get("jp_employer", 0))
+        totals["bpjs_jkk"] += flt(components.get("jkk", 0))
+        totals["bpjs_jkm"] += flt(components.get("jkm", 0))
+
+    # Calculate total
+    totals["total"] = (
+        totals["bpjs_kesehatan"]
+        + totals["bpjs_jht"]
+        + totals["bpjs_jp"]
+        + totals["bpjs_jkk"]
+        + totals["bpjs_jkm"]
+    )
+
+    return totals

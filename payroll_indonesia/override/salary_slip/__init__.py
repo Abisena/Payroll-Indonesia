@@ -1,28 +1,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-05-01 11:08:53 by dannyaudian
+# Last modified: 2025-06-29 02:27:15 by dannyaudian
 
-# Import directly from the controller module
-from .controller import (
-    IndonesiaPayrollSalarySlip,
-    setup_fiscal_year_if_missing,
-    process_salary_slips_batch,
-    check_fiscal_year_setup,
-    clear_caches,
-    get_component,
-    set_component,
-)
+"""Payroll Indonesia salary slip overrides."""
 
-# Export for direct imports
-__all__ = [
-    "IndonesiaPayrollSalarySlip",
-    "setup_fiscal_year_if_missing",
-    "process_salary_slips_batch",
-    "check_fiscal_year_setup",
-    "clear_caches",
-    "get_component",
-    "set_component",
-]
+from __future__ import unicode_literals
 
-# Note: This module is used to initialize the Payroll Indonesia salary slip processing components
+from .salary_utils import calculate_ytd_and_ytm
+
+__all__ = ["calculate_ytd_and_ytm"]
