@@ -245,7 +245,8 @@ def validate_tax_cache():
     except Exception as e:
         logger.error(f"Error validating tax cache: {str(e)}")
         raise
-    
+
+
 def clear_caches():
     # logika untuk menghapus cache
     pass
