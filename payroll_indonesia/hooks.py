@@ -141,14 +141,27 @@ fixtures = [
 ]
 
 # ❺ Scheduler tasks
+# scheduler_events = {
+#     "daily": ["payroll_indonesia.scheduler.tasks.daily_job"],
+#     "monthly": ["payroll_indonesia.scheduler.tasks.monthly_job"],
+#     "yearly": ["payroll_indonesia.scheduler.tasks.yearly_job"],
+#     "cron": {
+#         "0 */4 * * *": ["payroll_indonesia.scheduler.tasks.clear_caches"],
+#         "30 1 * * *": ["payroll_indonesia.scheduler.tasks.cleanup_logs"],
+#     },
+# }
+
 scheduler_events = {
-    "daily": ["payroll_indonesia.scheduler.tasks.daily_job"],
-    "monthly": ["payroll_indonesia.scheduler.tasks.monthly_job"],
-    "yearly": ["payroll_indonesia.scheduler.tasks.yearly_job"],
+    "daily": [
+        "payroll_indonesia.utilities.cache_utils.clear_all_caches",
+        "payroll_indonesia.utilities.cache_utils.clear_salary_slip_caches",
+    ],
     "cron": {
-        "0 */4 * * *": ["payroll_indonesia.scheduler.tasks.clear_caches"],
-        "30 1 * * *": ["payroll_indonesia.scheduler.tasks.cleanup_logs"],
+        "0 */4 * * *": ["payroll_indonesia.utilities.cache_utils.clear_all_caches"],
+        "30 1 * * *": ["payroll_indonesia.utilities.cache_utils.clear_salary_slip_caches"],
     },
+    "monthly": ["payroll_indonesia.payroll_indonesia.tax.monthly_tasks.update_tax_summaries"],
+    "yearly": ["payroll_indonesia.payroll_indonesia.tax.yearly_tasks.prepare_tax_report"],
 }
 
 # ❻ Authentication hooks
