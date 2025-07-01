@@ -71,7 +71,7 @@ doc_events = {
 doctype_class = {
     "Salary Slip": "payroll_indonesia.override.salary_slip.IndonesiaSalarySlip",
     "Payroll Entry": "payroll_indonesia.override.payroll_entry.CustomPayrollEntry",
-    "Employee": "payroll_indonesia.override.employee.EmployeeOverride",
+    # "Employee": "payroll_indonesia.override.employee.EmployeeOverride",
 }
 
 # Fixtures - dengan filter sesuai dengan kebutuhan
