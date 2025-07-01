@@ -1,6 +1,7 @@
 """Configuration utilities for Payroll Indonesia."""
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, Any
 
@@ -19,8 +20,8 @@ def get_config() -> Dict[str, Any]:
     global _config_cache
     if _config_cache is not None:
         return _config_cache
-    config_path = Path(__file__).parent / "config" / "defaults.json"
-    if not config_path.exists():
+    config_path = os.path.join(os.path.dirname(__file__), "config", "defaults.json")
+    if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
     with open(config_path, "r", encoding="utf-8") as f:
         _config_cache = json.load(f)
