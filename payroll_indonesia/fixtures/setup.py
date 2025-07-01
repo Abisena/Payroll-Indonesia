@@ -1239,9 +1239,7 @@ def setup_income_tax_slab(config):
                 f"Traceback: {frappe.get_traceback()}",
                 "Tax Slab Setup Error",
             )
-            debug_log(
-                f"Failed to create income tax slab: {str(e)}", "Tax Slab Setup Error"
-            )
+            debug_log(f"Failed to create income tax slab: {str(e)}", "Tax Slab Setup Error")
             return False
 
         except Exception as backup_error:
@@ -1253,7 +1251,7 @@ def setup_income_tax_slab(config):
             )
             debug_log(
                 f"Critical error creating income tax slab: {str(backup_error)}",
-                "Tax Slab Setup Error"
+                "Tax Slab Setup Error",
             )
             return False
 
@@ -1371,7 +1369,7 @@ def setup_salary_components(config):
                     )
                     debug_log(
                         f"Error creating/updating salary component {comp_data.get('name', 'unknown')}: {str(e)}",
-                        "Salary Component Setup Error"
+                        "Salary Component Setup Error",
                     )
 
         # Setup default salary structure
@@ -1393,8 +1391,7 @@ def setup_salary_components(config):
                 "Salary Structure Setup Error",
             )
             debug_log(
-                f"Error creating default salary structure: {str(e)}",
-                "Salary Structure Setup Error"
+                f"Error creating default salary structure: {str(e)}", "Salary Structure Setup Error"
             )
 
         # Log summary
