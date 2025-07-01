@@ -50,7 +50,7 @@ def before_install():
         debug_log(
             f"Error during before_install: {str(e)}",
             "Payroll Indonesia Installation Error",
-            trace=True,
+            # ,
         )
 
 
@@ -85,7 +85,7 @@ def after_install():
             f"Error during account setup: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "Account Setup Error",
         )
-        debug_log(f"Error during account setup: {str(e)}", "Account Setup Error", trace=True)
+        debug_log(f"Error during account setup: {str(e)}", "Account Setup Error")
 
     try:
         # Setup suppliers
@@ -100,7 +100,7 @@ def after_install():
             f"Error during supplier setup: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "Supplier Setup Error",
         )
-        debug_log(f"Error during supplier setup: {str(e)}", "Supplier Setup Error", trace=True)
+        debug_log(f"Error during supplier setup: {str(e)}", "Supplier Setup Error")
 
     try:
         # Setup tax configuration and TER rates
@@ -112,7 +112,7 @@ def after_install():
             f"Error during PPh 21 setup: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "PPh 21 Setup Error",
         )
-        debug_log(f"Error during PPh 21 setup: {str(e)}", "PPh 21 Setup Error", trace=True)
+        debug_log(f"Error during PPh 21 setup: {str(e)}", "PPh 21 Setup Error")
 
     try:
         # Setup salary components
@@ -127,7 +127,7 @@ def after_install():
         debug_log(
             f"Error during salary components setup: {str(e)}",
             "Salary Components Setup Error",
-            trace=True,
+            # trace=True,
         )
 
     try:
@@ -143,7 +143,7 @@ def after_install():
             f"Error during BPJS setup: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "BPJS Setup Error",
         )
-        debug_log(f"Error during BPJS setup: {str(e)}", "BPJS Setup Error", trace=True)
+        debug_log(f"Error during BPJS setup: {str(e)}", "BPJS Setup Error")
 
     # Commit all changes
     try:
@@ -153,7 +153,7 @@ def after_install():
             f"Error committing changes: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "Installation Database Error",
         )
-        debug_log(f"Error committing changes: {str(e)}", "Installation Database Error", trace=True)
+        debug_log(f"Error committing changes: {str(e)}", "Installation Database Error")
 
     # Display installation summary
     display_installation_summary(results, config)
@@ -205,7 +205,7 @@ def after_sync():
             f"Error during after_sync: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "Payroll Indonesia Sync Error",
         )
-        debug_log(f"Error during after_sync: {str(e)}", "Payroll Indonesia Sync Error", trace=True)
+        debug_log(f"Error during after_sync: {str(e)}", "Payroll Indonesia Sync Error")
 
 
 def update_ptkp_ter_mapping(config):
@@ -243,7 +243,7 @@ def update_ptkp_ter_mapping(config):
             debug_log(
                 f"Error clearing existing PTKP to TER mappings: {str(e)}",
                 "TER Mapping Error",
-                trace=True,
+                # trace=True,
             )
 
         # Create new mappings
@@ -275,7 +275,7 @@ def update_ptkp_ter_mapping(config):
                 debug_log(
                     f"Error creating mapping for {ptkp_status} to {ter_category}: {str(e)}",
                     "TER Mapping Error",
-                    trace=True,
+                    # trace=True,
                 )
 
         # Commit changes
@@ -1003,7 +1003,7 @@ def setup_pph21_defaults(config):
             f"Error setting up PPh 21: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "PPh 21 Setup Error",
         )
-        debug_log(f"Error setting up PPh 21: {str(e)}", "PPh 21 Setup Error", trace=True)
+        debug_log(f"Error setting up PPh 21: {str(e)}", "PPh 21 Setup Error")
         return None
 
 
@@ -1046,7 +1046,7 @@ def setup_pph21_ter(config, force_update=False):
                 f"Traceback: {frappe.get_traceback()}",
                 "TER Setup Error",
             )
-            debug_log(f"Error clearing existing TER rates: {str(e)}", "TER Setup Error", trace=True)
+            debug_log(f"Error clearing existing TER rates: {str(e)}", "TER Setup Error")
 
         # Get TER rates from config
         ter_rates = config.get("ter_rates", {})
@@ -1142,7 +1142,7 @@ def setup_pph21_ter(config, force_update=False):
                     debug_log(
                         f"Error creating TER rate for {status} with rate {rate_data['rate']}: {str(e)}",
                         "TER Rate Error",
-                        trace=True,
+                        # trace=True
                     )
 
         # Commit all changes
@@ -1155,7 +1155,7 @@ def setup_pph21_ter(config, force_update=False):
             f"Error setting up TER rates: {str(e)}\n\n" f"Traceback: {frappe.get_traceback()}",
             "TER Setup Error",
         )
-        debug_log(f"Error setting up TER rates: {str(e)}", "TER Setup Error", trace=True)
+        debug_log(f"Error setting up TER rates: {str(e)}", "TER Setup Error")
         return False
 
 
@@ -1240,7 +1240,7 @@ def setup_income_tax_slab(config):
                 "Tax Slab Setup Error",
             )
             debug_log(
-                f"Failed to create income tax slab: {str(e)}", "Tax Slab Setup Error", trace=True
+                f"Failed to create income tax slab: {str(e)}", "Tax Slab Setup Error"
             )
             return False
 
@@ -1253,8 +1253,7 @@ def setup_income_tax_slab(config):
             )
             debug_log(
                 f"Critical error creating income tax slab: {str(backup_error)}",
-                "Tax Slab Setup Error",
-                trace=True,
+                "Tax Slab Setup Error"
             )
             return False
 
@@ -1372,8 +1371,7 @@ def setup_salary_components(config):
                     )
                     debug_log(
                         f"Error creating/updating salary component {comp_data.get('name', 'unknown')}: {str(e)}",
-                        "Salary Component Setup Error",
-                        trace=True,
+                        "Salary Component Setup Error"
                     )
 
         # Setup default salary structure
@@ -1396,8 +1394,7 @@ def setup_salary_components(config):
             )
             debug_log(
                 f"Error creating default salary structure: {str(e)}",
-                "Salary Structure Setup Error",
-                trace=True,
+                "Salary Structure Setup Error"
             )
 
         # Log summary
@@ -1416,7 +1413,6 @@ def setup_salary_components(config):
         debug_log(
             f"Error setting up salary components: {str(e)}",
             "Salary Component Setup Error",
-            trace=True,
         )
         return False
 
