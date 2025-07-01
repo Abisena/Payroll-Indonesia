@@ -224,3 +224,24 @@ def safe_int(val: Any, default: int = 0) -> int:
         return int(float(val))
     except Exception:
         return default
+
+
+def get_formatted_currency(value, currency=None):
+    """
+    Format a number as currency with thousands separator
+
+    Args:
+        value: Numeric value to format
+        currency: Currency symbol (optional)
+
+    Returns:
+        str: Formatted currency string
+    """
+    from frappe.utils import flt, fmt_money
+
+    # Get default currency if not provided
+    if not currency:
+        currency = frappe.defaults.get_global_default("currency")
+
+    # Format as money with currency symbol
+    return fmt_money(flt(value), currency=currency)
