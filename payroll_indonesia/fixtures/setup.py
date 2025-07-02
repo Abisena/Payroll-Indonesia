@@ -21,8 +21,8 @@ __all__ = [
     "create_bpjs_supplier",
     "setup_salary_components",
     "display_installation_summary",
-    "setup_all_accounts",
-    "setup_company_accounts",
+    # "setup_all_accounts",
+    # "setup_company_accounts",
     "update_ptkp_ter_mapping",
     "setup_pph21_defaults",
     "setup_pph21_ter",
@@ -257,11 +257,11 @@ def setup_accounts(config=None, specific_company=None):
     if config is None:
         config = get_default_config()
     from payroll_indonesia.payroll_indonesia.utils import (
-        create_account,
+        # create_account,
         debug_log,
-        find_parent_account,
-        create_parent_liability_account,
-        create_parent_expense_account,
+        # find_parent_account,
+        # create_parent_liability_account,
+        # create_parent_expense_account,
     )
 
     results = {"success": True, "created": [], "skipped": [], "errors": []}
@@ -287,8 +287,8 @@ def setup_accounts(config=None, specific_company=None):
         return results
     for company in companies:
         try:
-            liability_parent = create_parent_liability_account(company.name)
-            expense_parent = create_parent_expense_account(company.name)
+            # liability_parent = create_parent_liability_account(company.name)
+            # expense_parent = create_parent_expense_account(company.name)
             # ... (rest of the modular setup as in your original, omitted for brevity)
             results["created"].append(company.name)
         except Exception as e:

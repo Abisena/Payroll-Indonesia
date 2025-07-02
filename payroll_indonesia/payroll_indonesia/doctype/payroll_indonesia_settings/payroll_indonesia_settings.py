@@ -12,7 +12,9 @@ delegating validation to central validation helpers and syncing with configurati
 
 import json
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
+
+# from typing import Dict, List, Any, Optional
 
 import frappe
 from frappe import _
@@ -103,7 +105,11 @@ class PayrollIndonesiaSettings(Document):
                 _("PTKP values must be defined for tax calculation"), indicator="orange"
             )
 
-        if self.use_ter and hasattr(self, "ptkp_ter_mapping_table") and not self.ptkp_ter_mapping_table:
+        if (
+            self.use_ter
+            and hasattr(self, "ptkp_ter_mapping_table")
+            and not self.ptkp_ter_mapping_table
+        ):
             frappe.msgprint(
                 _("PTKP to TER mappings should be defined when using TER calculation method"),
                 indicator="orange",
@@ -476,20 +482,20 @@ class PayrollIndonesiaSettings(Document):
     def _populate_default_values(self) -> None:
         """
         Populate default values from configuration if fields are empty.
-        
+
         Uses central configuration to populate child tables and settings fields.
         """
         # Get configuration
         config = get_config()
         defaults_loaded = False
-        
+
         # Delegate to specific population methods
         defaults_loaded |= self._populate_ptkp_values(config)
         defaults_loaded |= self._populate_tax_brackets(config)
         defaults_loaded |= self._populate_employee_types(config)
         defaults_loaded |= self._populate_ptkp_ter_mapping(config)
         defaults_loaded |= self._populate_ter_rates(config)
-        
+
         # Apply any basic field defaults from config
         defaults_loaded |= self._populate_basic_settings(config)
 
@@ -508,142 +514,139 @@ class PayrollIndonesiaSettings(Document):
     def _populate_ptkp_values(self, config: Dict[str, Any]) -> bool:
         """
         Populate PTKP values from config if not already defined.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             bool: True if values were populated, False otherwise
         """
         # Check if values need to be populated
         if not hasattr(self, "ptkp_table") or self.ptkp_table:
             return False
-            
+
         # Extract PTKP data from config
         ptkp_values = config.get("ptkp", {})
         if not ptkp_values:
             logger.info("No PTKP values found in configuration")
             return False
-            
+
         # Clear existing rows if any
         self.set("ptkp_table", [])
-        
+
         # Add values from config
         for status_code, amount in ptkp_values.items():
-            self.append("ptkp_table", {
-                "status_pajak": status_code,
-                "ptkp_amount": flt(amount)
-            })
-            
+            self.append("ptkp_table", {"status_pajak": status_code, "ptkp_amount": flt(amount)})
+
         logger.info(f"Populated {len(ptkp_values)} PTKP values from configuration")
         return True
 
     def _populate_tax_brackets(self, config: Dict[str, Any]) -> bool:
         """
         Populate tax brackets from config if not already defined.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             bool: True if values were populated, False otherwise
         """
         # Check if values need to be populated
         if not hasattr(self, "tax_brackets_table") or self.tax_brackets_table:
             return False
-            
+
         # Extract tax brackets from config
         tax_brackets = config.get("tax_brackets", [])
         if not tax_brackets:
             logger.info("No tax brackets found in configuration")
             return False
-            
+
         # Clear existing rows if any
         self.set("tax_brackets_table", [])
-        
+
         # Add brackets from config
         for bracket in tax_brackets:
-            self.append("tax_brackets_table", {
-                "income_from": flt(bracket.get("income_from", 0)),
-                "income_to": flt(bracket.get("income_to", 0)),
-                "tax_rate": flt(bracket.get("tax_rate", 0))
-            })
-            
+            self.append(
+                "tax_brackets_table",
+                {
+                    "income_from": flt(bracket.get("income_from", 0)),
+                    "income_to": flt(bracket.get("income_to", 0)),
+                    "tax_rate": flt(bracket.get("tax_rate", 0)),
+                },
+            )
+
         logger.info(f"Populated {len(tax_brackets)} tax brackets from configuration")
         return True
 
     def _populate_employee_types(self, config: Dict[str, Any]) -> bool:
         """
         Populate employee types from config if not already defined.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             bool: True if values were populated, False otherwise
         """
         # Check if values need to be populated
         if not hasattr(self, "tipe_karyawan") or self.tipe_karyawan:
             return False
-            
+
         # Extract employee types from config
         tipe_karyawan = config.get("tipe_karyawan", [])
         if not tipe_karyawan:
             logger.info("No employee types found in configuration")
             return False
-            
+
         # Clear existing rows if any
         self.set("tipe_karyawan", [])
-        
+
         # Add types from config
         for tipe in tipe_karyawan:
-            self.append("tipe_karyawan", {
-                "tipe_karyawan": tipe
-            })
-            
+            self.append("tipe_karyawan", {"tipe_karyawan": tipe})
+
         logger.info(f"Populated {len(tipe_karyawan)} employee types from configuration")
         return True
 
     def _populate_ptkp_ter_mapping(self, config: Dict[str, Any]) -> bool:
         """
         Populate PTKP to TER mapping from config if not already defined.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             bool: True if values were populated, False otherwise
         """
         # Check if values need to be populated
         if not hasattr(self, "ptkp_ter_mapping_table") or self.ptkp_ter_mapping_table:
             return False
-            
+
         # Extract mapping from config
         mapping_data = config.get("ptkp_to_ter_mapping", {})
         if not mapping_data:
             logger.info("No PTKP to TER mapping found in configuration")
             return False
-            
+
         # Clear existing rows if any
         self.set("ptkp_ter_mapping_table", [])
-        
+
         # Add mapping from config
         for ptkp_code, ter_category in mapping_data.items():
-            self.append("ptkp_ter_mapping_table", {
-                "ptkp_status": ptkp_code,
-                "ter_category": ter_category
-            })
-            
+            self.append(
+                "ptkp_ter_mapping_table", {"ptkp_status": ptkp_code, "ter_category": ter_category}
+            )
+
         logger.info(f"Populated {len(mapping_data)} PTKP to TER mappings from configuration")
         return True
 
     def _populate_ter_rates(self, config: Dict[str, Any]) -> bool:
         """
         Populate TER rates from config if not already defined.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             bool: True if values were populated, False otherwise
         """
@@ -652,24 +655,36 @@ class PayrollIndonesiaSettings(Document):
         if not ter_rates:
             logger.info("No TER rates found in configuration")
             return False
-            
+
         updated = False
-        
+
         # Store TER A rates in JSON field if available
-        if "TER A" in ter_rates and hasattr(self, "ter_rate_ter_a_json") and not self.ter_rate_ter_a_json:
+        if (
+            "TER A" in ter_rates
+            and hasattr(self, "ter_rate_ter_a_json")
+            and not self.ter_rate_ter_a_json
+        ):
             self.ter_rate_ter_a_json = json.dumps(ter_rates["TER A"])
             updated = True
-            
+
         # Store TER B rates in JSON field if available
-        if "TER B" in ter_rates and hasattr(self, "ter_rate_ter_b_json") and not self.ter_rate_ter_b_json:
+        if (
+            "TER B" in ter_rates
+            and hasattr(self, "ter_rate_ter_b_json")
+            and not self.ter_rate_ter_b_json
+        ):
             self.ter_rate_ter_b_json = json.dumps(ter_rates["TER B"])
             updated = True
-            
+
         # Store TER C rates in JSON field if available
-        if "TER C" in ter_rates and hasattr(self, "ter_rate_ter_c_json") and not self.ter_rate_ter_c_json:
+        if (
+            "TER C" in ter_rates
+            and hasattr(self, "ter_rate_ter_c_json")
+            and not self.ter_rate_ter_c_json
+        ):
             self.ter_rate_ter_c_json = json.dumps(ter_rates["TER C"])
             updated = True
-            
+
         # If there's a table for TER rates, populate it
         if hasattr(self, "ter_rates_table") and not self.ter_rates_table:
             # Process each TER category
@@ -677,59 +692,62 @@ class PayrollIndonesiaSettings(Document):
                 # Skip metadata entry
                 if category_name == "metadata":
                     continue
-                    
+
                 # Add each rate in the category
                 for rate in rates:
-                    self.append("ter_rates_table", {
-                        "category": category_name,
-                        "income_from": flt(rate.get("income_from", 0)),
-                        "income_to": flt(rate.get("income_to", 0)),
-                        "rate": flt(rate.get("rate", 0)),
-                        "is_highest_bracket": cint(rate.get("is_highest_bracket", 0))
-                    })
-                    
+                    self.append(
+                        "ter_rates_table",
+                        {
+                            "category": category_name,
+                            "income_from": flt(rate.get("income_from", 0)),
+                            "income_to": flt(rate.get("income_to", 0)),
+                            "rate": flt(rate.get("rate", 0)),
+                            "is_highest_bracket": cint(rate.get("is_highest_bracket", 0)),
+                        },
+                    )
+
             updated = True
-            
+
         # Set TER metadata if available
         metadata = ter_rates.get("metadata", {})
         if metadata:
             if hasattr(self, "ter_regulation_ref") and not self.ter_regulation_ref:
                 self.ter_regulation_ref = metadata.get("regulation_ref", "")
                 updated = True
-                
+
             if hasattr(self, "ter_effective_date") and not self.ter_effective_date:
                 self.ter_effective_date = metadata.get("effective_date", "")
                 updated = True
-                
+
             if hasattr(self, "ter_description") and not self.ter_description:
                 self.ter_description = metadata.get("description", "")
                 updated = True
-                
+
             if hasattr(self, "ter_default_category") and not self.ter_default_category:
                 self.ter_default_category = metadata.get("default_category", "TER A")
                 updated = True
-                
+
             if hasattr(self, "ter_fallback_rate") and not self.ter_fallback_rate:
                 self.ter_fallback_rate = flt(metadata.get("fallback_rate", 5.0))
                 updated = True
-        
+
         if updated:
             logger.info("Populated TER rates from configuration")
-            
+
         return updated
 
     def _populate_basic_settings(self, config: Dict[str, Any]) -> bool:
         """
         Populate basic setting fields from configuration.
-        
+
         Args:
             config: Configuration dictionary
-            
+
         Returns:
             bool: True if values were populated, False otherwise
         """
         updated = False
-        
+
         # BPJS settings
         bpjs_config = config.get("bpjs", {})
         if bpjs_config:
@@ -743,98 +761,117 @@ class PayrollIndonesiaSettings(Document):
                 ("jp_employer_percent", 2.0),
                 ("jp_max_salary", 9077600.0),
                 ("jkk_percent", 0.24),
-                ("jkm_percent", 0.3)
+                ("jkm_percent", 0.3),
             ]
-            
+
             for field_name, default_value in bpjs_fields:
                 if hasattr(self, field_name) and not self.get(field_name):
                     setattr(self, field_name, flt(bpjs_config.get(field_name, default_value)))
                     updated = True
-        
+
         # Tax settings
         tax_config = config.get("tax", {})
         if tax_config:
             if hasattr(self, "tax_calculation_method") and not self.tax_calculation_method:
                 self.tax_calculation_method = tax_config.get("tax_calculation_method", "TER")
                 updated = True
-                
+
             if hasattr(self, "use_ter") and not self.use_ter:
                 self.use_ter = cint(tax_config.get("use_ter", 1))
                 updated = True
-                
+
             if hasattr(self, "biaya_jabatan_percent") and not self.biaya_jabatan_percent:
                 self.biaya_jabatan_percent = flt(tax_config.get("biaya_jabatan_percent", 5.0))
                 updated = True
-                
+
             if hasattr(self, "biaya_jabatan_max") and not self.biaya_jabatan_max:
                 self.biaya_jabatan_max = flt(tax_config.get("biaya_jabatan_max", 500000.0))
                 updated = True
-                
+
             if hasattr(self, "npwp_mandatory") and not self.npwp_mandatory:
                 self.npwp_mandatory = cint(tax_config.get("npwp_mandatory", 0))
                 updated = True
-        
+
         # Default settings
         defaults = config.get("defaults", {})
         if defaults:
             if hasattr(self, "default_currency") and not self.default_currency:
                 self.default_currency = defaults.get("currency", "IDR")
                 updated = True
-                
-            if hasattr(self, "attendance_based_on_timesheet") and not self.attendance_based_on_timesheet:
-                self.attendance_based_on_timesheet = cint(defaults.get("attendance_based_on_timesheet", 0))
+
+            if (
+                hasattr(self, "attendance_based_on_timesheet")
+                and not self.attendance_based_on_timesheet
+            ):
+                self.attendance_based_on_timesheet = cint(
+                    defaults.get("attendance_based_on_timesheet", 0)
+                )
                 updated = True
-                
+
             if hasattr(self, "payroll_frequency") and not self.payroll_frequency:
                 self.payroll_frequency = defaults.get("payroll_frequency", "Monthly")
                 updated = True
-                
+
             if hasattr(self, "salary_slip_based_on") and not self.salary_slip_based_on:
                 self.salary_slip_based_on = defaults.get("salary_slip_based_on", "Leave Policy")
                 updated = True
-                
+
             if hasattr(self, "max_working_days_per_month") and not self.max_working_days_per_month:
-                self.max_working_days_per_month = cint(defaults.get("max_working_days_per_month", 22))
+                self.max_working_days_per_month = cint(
+                    defaults.get("max_working_days_per_month", 22)
+                )
                 updated = True
-                
-            if hasattr(self, "include_holidays_in_total_working_days") and not self.include_holidays_in_total_working_days:
-                self.include_holidays_in_total_working_days = cint(defaults.get("include_holidays_in_total_working_days", 0))
+
+            if (
+                hasattr(self, "include_holidays_in_total_working_days")
+                and not self.include_holidays_in_total_working_days
+            ):
+                self.include_holidays_in_total_working_days = cint(
+                    defaults.get("include_holidays_in_total_working_days", 0)
+                )
                 updated = True
-                
+
             if hasattr(self, "working_hours_per_day") and not self.working_hours_per_day:
                 self.working_hours_per_day = flt(defaults.get("working_hours_per_day", 8))
                 updated = True
-        
+
         # Salary structure settings
         struktur_gaji = config.get("struktur_gaji", {})
         if struktur_gaji:
             if hasattr(self, "basic_salary_percent") and not self.basic_salary_percent:
                 self.basic_salary_percent = flt(struktur_gaji.get("basic_salary_percent", 75))
                 updated = True
-                
+
             if hasattr(self, "meal_allowance_default") and not self.meal_allowance_default:
                 self.meal_allowance_default = flt(struktur_gaji.get("meal_allowance", 750000.0))
                 updated = True
-                
-            if hasattr(self, "transport_allowance_default") and not self.transport_allowance_default:
-                self.transport_allowance_default = flt(struktur_gaji.get("transport_allowance", 900000.0))
+
+            if (
+                hasattr(self, "transport_allowance_default")
+                and not self.transport_allowance_default
+            ):
+                self.transport_allowance_default = flt(
+                    struktur_gaji.get("transport_allowance", 900000.0)
+                )
                 updated = True
-                
+
             if hasattr(self, "umr_default") and not self.umr_default:
                 self.umr_default = flt(struktur_gaji.get("umr_default", 4900000.0))
                 updated = True
-                
+
             if hasattr(self, "position_allowance_percent") and not self.position_allowance_percent:
-                self.position_allowance_percent = flt(struktur_gaji.get("position_allowance_percent", 7.5))
+                self.position_allowance_percent = flt(
+                    struktur_gaji.get("position_allowance_percent", 7.5)
+                )
                 updated = True
-                
+
             if hasattr(self, "working_days_default") and not self.working_days_default:
                 self.working_days_default = cint(struktur_gaji.get("hari_kerja_default", 22))
                 updated = True
-        
+
         if updated:
             logger.info("Populated basic settings from configuration")
-            
+
         return updated
 
     # Public utility methods
@@ -900,5 +937,5 @@ class PayrollIndonesiaSettings(Document):
         if not types:
             config = get_config()
             types = config.get("tipe_karyawan", [])
-            
+
         return types

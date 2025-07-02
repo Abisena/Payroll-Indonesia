@@ -4,11 +4,15 @@ Provides centralized setup functions used during installation and updates.
 """
 
 import logging
-from typing import Dict, Any, Optional, List, cast
+from typing import Dict, Any, Optional
+
+# from typing import Dict, Any, Optional, List, cast
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now_datetime
+from frappe.utils import flt
+
+# from frappe.utils import flt, now_datetime
 
 from payroll_indonesia.config.config import get_live_config
 from payroll_indonesia.frappe_helpers import safe_execute, doc_exists
@@ -351,7 +355,7 @@ def create_bpjs_mapping_for_company(
 def migrate_config_to_settings(config: Dict[str, Any]) -> bool:
     """
     Migrate configuration from defaults.json to the Payroll Indonesia Settings DocType.
-    
+
     This function delegates migration of different sections to specialized helpers
     in the settings_migration module.
 
@@ -362,12 +366,12 @@ def migrate_config_to_settings(config: Dict[str, Any]) -> bool:
         bool: True if successful, False otherwise
     """
     logger.info(_("Starting migration of configuration to Payroll Indonesia Settings"))
-    
+
     # Check if DocType exists
     if not frappe.db.table_exists("Payroll Indonesia Settings"):
         logger.warning(_("Payroll Indonesia Settings DocType does not exist"))
         return False
-    
+
     if not config:
         logger.warning(_("No configuration to migrate"))
         return False
@@ -380,49 +384,50 @@ def migrate_config_to_settings(config: Dict[str, Any]) -> bool:
         else:
             settings = frappe.new_doc(settings_name)
             settings.document_name = settings_name
-        
+
         # Perform the migration
         results = migrate_all_settings(settings, config)
-        
+
         # Save the document
         settings.flags.ignore_permissions = True
-        
+
         if settings.is_new():
             settings.insert(ignore_permissions=True)
             logger.info(_("Created new Payroll Indonesia Settings with migrated configuration"))
         else:
             settings.save(ignore_permissions=True)
-            logger.info(_("Updated existing Payroll Indonesia Settings with migrated configuration"))
-        
+            logger.info(
+                _("Updated existing Payroll Indonesia Settings with migrated configuration")
+            )
+
         frappe.db.commit()
-        
+
         # Log migration results
         succeeded = sum(1 for result in results.values() if result)
         failed = len(results) - succeeded
-        
+
         logger.info(
-            _("Configuration migration completed: {0}/{1} sections migrated successfully")
-            .format(succeeded, len(results))
-        )
-        
-        if failed > 0:
-            logger.warning(
-                _("Failed to migrate {0} sections")
-                .format(failed)
+            _("Configuration migration completed: {0}/{1} sections migrated successfully").format(
+                succeeded, len(results)
             )
-            
+        )
+
+        if failed > 0:
+            logger.warning(_("Failed to migrate {0} sections").format(failed))
+
             # Log the failed sections
             for section, success in results.items():
                 if not success:
                     logger.warning(_("Failed to migrate section: {0}").format(section))
-        
+
         return succeeded > 0
-        
+
     except Exception as e:
         logger.error(_("Error migrating configuration to settings: {0}").format(str(e)))
         frappe.log_error(
-            _("Error migrating configuration to settings: {0}\n{1}")
-            .format(str(e), frappe.get_traceback()),
-            "Configuration Migration Error"
+            _("Error migrating configuration to settings: {0}\n{1}").format(
+                str(e), frappe.get_traceback()
+            ),
+            "Configuration Migration Error",
         )
         return False

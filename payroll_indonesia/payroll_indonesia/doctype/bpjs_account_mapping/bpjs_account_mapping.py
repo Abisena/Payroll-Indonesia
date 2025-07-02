@@ -15,7 +15,7 @@ def validate(doc, method=None):
     """
     Global validation hook for BPJS Account Mapping document.
     Called by background jobs and setup processes.
-    
+
     Args:
         doc: The document being validated
         method: The method that triggered this hook (optional)

@@ -50,7 +50,7 @@ class BPJSSettings(Document):
             # Sync with main settings
             self.sync_with_payroll_settings()
 
-            logger.info(f"Validated BPJS Settings")
+            logger.info("Validated BPJS Settings")
         finally:
             # Always clean up flag
             self._validated = False
