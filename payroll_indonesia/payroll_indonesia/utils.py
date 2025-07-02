@@ -10,18 +10,23 @@ No tax/BPJS-specific functions.
 import logging
 from typing import Any, Callable, Optional, TypeVar, cast
 
-# from typing import Any, Callable, Optional, Dict, TypeVar, cast
 import frappe
 
 from payroll_indonesia.config.config import get_live_config
-
-# from payroll_indonesia.frappe_helpers import ensure_doc_exists
 
 logger = logging.getLogger("payroll_utils")
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def debug_log(message: str, data: Any = None):
+def debug_log(message: str, data: Any = None, trace: Any = None):
+    """
+    Print debug log with optional data and trace parameter for backward compatibility.
+
+    Args:
+        message (str): Log message.
+        data (Any, optional): Additional data to pretty-print.
+        trace (Any, optional): Ignored, for backward compatibility.
+    """
     from frappe.utils import now
 
     print(f"[{now()}] {message}")
@@ -29,6 +34,7 @@ def debug_log(message: str, data: Any = None):
         import pprint
 
         pprint.pprint(data)
+    # 'trace' parameter is accepted for backward compatibility but not used.
 
 
 def safe_execute(default_value: Any = None, log_exception: bool = True) -> Callable[[F], F]:
