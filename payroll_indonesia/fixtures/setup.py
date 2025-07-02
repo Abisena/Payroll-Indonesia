@@ -7,7 +7,6 @@ import frappe
 from frappe.utils import getdate, flt
 from frappe.exceptions import ValidationError
 
-# Correct config import and debug_log
 from payroll_indonesia.config.config import get_config as get_default_config
 from payroll_indonesia.payroll_indonesia.utils import debug_log
 
@@ -58,7 +57,6 @@ def after_install():
         "bpjs_setup": False,
     }
 
-    # Accounts setup
     try:
         results["accounts"] = setup_accounts(config)
         debug_log("Account setup completed", "Installation")
@@ -69,7 +67,6 @@ def after_install():
         )
         debug_log(f"Error during account setup: {str(e)}", "Account Setup Error")
 
-    # Supplier group and BPJS supplier
     try:
         suppliers_ok = create_supplier_group()
         if suppliers_ok and config.get("suppliers", {}).get("bpjs", {}):
@@ -83,7 +80,6 @@ def after_install():
         )
         debug_log(f"Error during supplier setup: {str(e)}", "Supplier Setup Error")
 
-    # PPh21 settings and TER
     try:
         results["pph21_settings"] = setup_pph21(config)
         debug_log("PPh 21 setup completed", "Installation")
@@ -94,7 +90,6 @@ def after_install():
         )
         debug_log(f"Error during PPh 21 setup: {str(e)}", "PPh 21 Setup Error")
 
-    # Salary components
     try:
         results["salary_components"] = setup_salary_components(config)
         debug_log("Salary components setup completed", "Installation")
@@ -105,7 +100,6 @@ def after_install():
         )
         debug_log(f"Error during salary components setup: {str(e)}", "Salary Components Setup Error")
 
-    # BPJS settings
     try:
         results["bpjs_setup"] = setup_bpjs_settings()
         debug_log("BPJS setup completed", "Installation")
@@ -116,7 +110,6 @@ def after_install():
         )
         debug_log(f"Error during BPJS setup: {str(e)}", "BPJS Setup Error")
 
-    # Commit all changes
     try:
         frappe.db.commit()
     except Exception as e:
