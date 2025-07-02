@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 16:31:25 by dannyaudian
+# Last modified: 2025-07-02 16:58:59 by dannyaudian
 
 """
 BPJS Payment Services module.
@@ -18,7 +18,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint, flt, get_datetime, today, now_datetime
 
-from payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.bpjs_payment_service import (
+# Import the core service
+from payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.payment_summary_service_core import (
     PaymentSummaryService
 )
 
@@ -277,10 +278,8 @@ class BPJSPaymentService:
             if frappe.db.exists("Payment Entry", doc.payment_entry):
                 return doc.payment_entry
         
-        # Create PaymentSummaryService instance
+        # Create PaymentSummaryService instance and delegate to it
         service = PaymentSummaryService(doc)
-        
-        # Create Payment Entry
         payment_entry_name = service.create_payment_entry()
         
         if not payment_entry_name:
