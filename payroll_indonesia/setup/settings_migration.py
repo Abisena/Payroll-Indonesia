@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 16:36:23 by dannyaudian
+# Last modified: 2025-07-02 16:49:17 by dannyaudian
 
 """
 Settings Migration Module
@@ -11,18 +11,37 @@ to Payroll Indonesia Settings document and its child tables.
 """
 
 import logging
+import json
 from typing import Any, Dict, List, Optional, Tuple, cast
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now_datetime
-
-from payroll_indonesia.frappe_helpers import safe_execute, doc_exists
+from frappe.utils import flt, cint, now_datetime
 
 logger = logging.getLogger(__name__)
 
 
-def migrate_ptkp_data(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
+def debug_log(message: str, level: str = "info") -> None:
+    """
+    Log message with appropriate level.
+    
+    Args:
+        message: Message to log
+        level: Log level (debug, info, warning, error)
+    """
+    if level == "debug":
+        logger.debug(message)
+    elif level == "info":
+        logger.info(message)
+    elif level == "warning":
+        logger.warning(message)
+    elif level == "error":
+        logger.error(message)
+    else:
+        logger.info(message)
+
+
+def migrate_ptkp(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
     """
     Migrate PTKP (non-taxable income) data from config to settings.
     
@@ -33,27 +52,44 @@ def migrate_ptkp_data(settings: "frappe.Document", config: Dict[str, Any]) -> bo
     Returns:
         bool: True if successful, False otherwise
     """
-    if not frappe.db.table_exists("PTKP Table Entry"):
-        logger.warning(_("PTKP Table Entry table does not exist, skipping migration"))
+    try:
+        # Check if table exists in DocType
+        if not hasattr(settings, "ptkp_table"):
+            debug_log("ptkp_table child table not found in Payroll Indonesia Settings", "warning")
+            return False
+        
+        # Extract PTKP data from config
+        ptkp_data = config.get("ptkp", {})
+        if not ptkp_data:
+            debug_log("No PTKP data found in configuration", "warning")
+            return False
+        
+        # Clear existing entries
+        settings.ptkp_table = []
+        
+        # Add new entries
+        count = 0
+        for status_code, amount in ptkp_data.items():
+            settings.append("ptkp_table", {
+                "status_code": status_code,
+                "amount": flt(amount)
+            })
+            count += 1
+        
+        # Alternative JSON backup if table insertion fails
+        try:
+            # Store as JSON if field exists
+            if hasattr(settings, "ptkp_json"):
+                settings.ptkp_json = json.dumps(ptkp_data)
+        except Exception as e:
+            debug_log(f"Could not store PTKP as JSON backup: {str(e)}", "warning")
+        
+        debug_log(f"Migrated PTKP data: {count} entries")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating PTKP data: {str(e)}", "error")
         return False
-        
-    ptkp_data = config.get("ptkp", {})
-    if not ptkp_data:
-        logger.warning(_("No PTKP data found in configuration"))
-        return False
-        
-    # Clear existing entries
-    settings.ptkp_table = []
-    
-    # Add new entries
-    for status_code, amount in ptkp_data.items():
-        settings.append("ptkp_table", {
-            "status_code": status_code,
-            "amount": flt(amount)
-        })
-        
-    logger.info(_("Migrated PTKP data: {0} entries").format(len(ptkp_data)))
-    return True
 
 
 def migrate_tax_brackets(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -67,28 +103,45 @@ def migrate_tax_brackets(settings: "frappe.Document", config: Dict[str, Any]) ->
     Returns:
         bool: True if successful, False otherwise
     """
-    if not frappe.db.table_exists("Tax Bracket Entry"):
-        logger.warning(_("Tax Bracket Entry table does not exist, skipping migration"))
+    try:
+        # Check if table exists in DocType
+        if not hasattr(settings, "tax_brackets_table"):
+            debug_log("tax_brackets_table child table not found in Payroll Indonesia Settings", "warning")
+            return False
+        
+        # Extract tax brackets from config
+        tax_brackets = config.get("tax_brackets", [])
+        if not tax_brackets:
+            debug_log("No tax brackets found in configuration", "warning")
+            return False
+        
+        # Clear existing entries
+        settings.tax_brackets_table = []
+        
+        # Add new entries
+        count = 0
+        for bracket in tax_brackets:
+            settings.append("tax_brackets_table", {
+                "income_from": flt(bracket.get("income_from", 0)),
+                "income_to": flt(bracket.get("income_to", 0)),
+                "tax_rate": flt(bracket.get("tax_rate", 0))
+            })
+            count += 1
+        
+        # Alternative JSON backup if table insertion fails
+        try:
+            # Store as JSON if field exists
+            if hasattr(settings, "tax_brackets_json"):
+                settings.tax_brackets_json = json.dumps(tax_brackets)
+        except Exception as e:
+            debug_log(f"Could not store tax brackets as JSON backup: {str(e)}", "warning")
+        
+        debug_log(f"Migrated tax brackets: {count} entries")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating tax brackets: {str(e)}", "error")
         return False
-        
-    tax_brackets = config.get("tax_brackets", [])
-    if not tax_brackets:
-        logger.warning(_("No tax brackets found in configuration"))
-        return False
-        
-    # Clear existing entries
-    settings.tax_brackets = []
-    
-    # Add new entries
-    for bracket in tax_brackets:
-        settings.append("tax_brackets", {
-            "income_from": flt(bracket.get("income_from", 0)),
-            "income_to": flt(bracket.get("income_to", 0)),
-            "tax_rate": flt(bracket.get("tax_rate", 0))
-        })
-        
-    logger.info(_("Migrated tax brackets: {0} entries").format(len(tax_brackets)))
-    return True
 
 
 def migrate_ter_rates(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -102,87 +155,88 @@ def migrate_ter_rates(settings: "frappe.Document", config: Dict[str, Any]) -> bo
     Returns:
         bool: True if successful, False otherwise
     """
-    if not frappe.db.table_exists("TER Rate Category") or not frappe.db.table_exists("TER Rate Entry"):
-        logger.warning(_("TER Rate tables do not exist, skipping migration"))
-        return False
+    try:
+        # Extract TER rates from config
+        ter_rates = config.get("ter_rates", {})
+        if not ter_rates:
+            debug_log("No TER rates found in configuration", "warning")
+            return False
         
-    ter_rates = config.get("ter_rates", {})
-    if not ter_rates:
-        logger.warning(_("No TER rates found in configuration"))
-        return False
+        # Check if primary table exists in DocType
+        has_primary_table = hasattr(settings, "ter_rates_table")
         
-    # Clear existing entries
-    settings.ter_rate_categories = []
-    
-    # Add metadata if available
-    metadata = ter_rates.get("metadata", {})
-    if metadata:
-        settings.ter_regulation_ref = metadata.get("regulation_ref", "")
-        settings.ter_effective_date = metadata.get("effective_date", "")
-        settings.ter_description = metadata.get("description", "")
-        settings.ter_default_category = metadata.get("default_category", "TER A")
-        settings.ter_fallback_rate = flt(metadata.get("fallback_rate", 5.0))
-    
-    # Process each TER category
-    for category_name, rates in ter_rates.items():
-        # Skip metadata entry
-        if category_name == "metadata":
-            continue
+        # Check if backup JSON fields exist
+        has_json_backup = (
+            hasattr(settings, "ter_rate_ter_a_json") or
+            hasattr(settings, "ter_rate_ter_b_json") or
+            hasattr(settings, "ter_rate_ter_c_json")
+        )
+        
+        if not has_primary_table and not has_json_backup:
+            debug_log("Neither ter_rates_table nor JSON backup fields found", "warning")
+            return False
+        
+        # Add metadata if available
+        metadata = ter_rates.get("metadata", {})
+        if metadata:
+            if hasattr(settings, "ter_regulation_ref"):
+                settings.ter_regulation_ref = metadata.get("regulation_ref", "")
             
-        # Create TER category
-        category = {
-            "category_name": category_name,
-            "ter_rates": []
-        }
+            if hasattr(settings, "ter_effective_date"):
+                settings.ter_effective_date = metadata.get("effective_date", "")
+            
+            if hasattr(settings, "ter_description"):
+                settings.ter_description = metadata.get("description", "")
+            
+            if hasattr(settings, "ter_default_category"):
+                settings.ter_default_category = metadata.get("default_category", "TER A")
+            
+            if hasattr(settings, "ter_fallback_rate"):
+                settings.ter_fallback_rate = flt(metadata.get("fallback_rate", 5.0))
         
-        # Add TER rates
-        for rate in rates:
-            category["ter_rates"].append({
-                "income_from": flt(rate.get("income_from", 0)),
-                "income_to": flt(rate.get("income_to", 0)),
-                "rate": flt(rate.get("rate", 0)),
-                "is_highest_bracket": rate.get("is_highest_bracket", 0)
-            })
+        # Process TER A, B, C rates
+        if "TER A" in ter_rates and hasattr(settings, "ter_rate_ter_a_json"):
+            settings.ter_rate_ter_a_json = json.dumps(ter_rates["TER A"])
+            debug_log("Stored TER A rates in JSON field")
         
-        settings.append("ter_rate_categories", category)
-    
-    logger.info(_("Migrated TER rates: {0} categories").format(len(ter_rates) - 
-                                                              (1 if "metadata" in ter_rates else 0)))
-    return True
-
-
-def migrate_ptkp_ter_mapping(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
-    """
-    Migrate PTKP to TER mapping data from config to settings.
-    
-    Args:
-        settings: Payroll Indonesia Settings document
-        config: Configuration dictionary
+        if "TER B" in ter_rates and hasattr(settings, "ter_rate_ter_b_json"):
+            settings.ter_rate_ter_b_json = json.dumps(ter_rates["TER B"])
+            debug_log("Stored TER B rates in JSON field")
         
-    Returns:
-        bool: True if successful, False otherwise
-    """
-    if not frappe.db.table_exists("PTKP TER Mapping Entry"):
-        logger.warning(_("PTKP TER Mapping Entry table does not exist, skipping migration"))
+        if "TER C" in ter_rates and hasattr(settings, "ter_rate_ter_c_json"):
+            settings.ter_rate_ter_c_json = json.dumps(ter_rates["TER C"])
+            debug_log("Stored TER C rates in JSON field")
+        
+        # If we have the primary table, populate it
+        if has_primary_table:
+            # Clear existing entries
+            settings.ter_rates_table = []
+            
+            # Process each TER category
+            count = 0
+            for category_name, rates in ter_rates.items():
+                # Skip metadata entry
+                if category_name == "metadata":
+                    continue
+                
+                # Add each rate in the category
+                for rate in rates:
+                    settings.append("ter_rates_table", {
+                        "category": category_name,
+                        "income_from": flt(rate.get("income_from", 0)),
+                        "income_to": flt(rate.get("income_to", 0)),
+                        "rate": flt(rate.get("rate", 0)),
+                        "is_highest_bracket": cint(rate.get("is_highest_bracket", 0))
+                    })
+                    count += 1
+            
+            debug_log(f"Migrated TER rates: {count} entries across all categories")
+        
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating TER rates: {str(e)}", "error")
         return False
-        
-    mapping_data = config.get("ptkp_to_ter_mapping", {})
-    if not mapping_data:
-        logger.warning(_("No PTKP to TER mapping found in configuration"))
-        return False
-        
-    # Clear existing entries
-    settings.ptkp_ter_mapping = []
-    
-    # Add new entries
-    for ptkp_code, ter_category in mapping_data.items():
-        settings.append("ptkp_ter_mapping", {
-            "ptkp_code": ptkp_code,
-            "ter_category": ter_category
-        })
-        
-    logger.info(_("Migrated PTKP to TER mapping: {0} entries").format(len(mapping_data)))
-    return True
 
 
 def migrate_gl_accounts(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -196,43 +250,69 @@ def migrate_gl_accounts(settings: "frappe.Document", config: Dict[str, Any]) -> 
     Returns:
         bool: True if successful, False otherwise
     """
-    gl_accounts = config.get("gl_accounts", {})
-    if not gl_accounts:
-        logger.warning(_("No GL accounts found in configuration"))
-        return False
+    try:
+        # Extract GL accounts from config
+        gl_accounts = config.get("gl_accounts", {})
+        if not gl_accounts:
+            debug_log("No GL accounts found in configuration", "warning")
+            return False
         
-    # Set root account info
-    root_account = gl_accounts.get("root_account", {})
-    if root_account:
-        settings.root_account_name = root_account.get("account_name", "Payroll Accounts")
-        settings.root_account_type = root_account.get("account_type", "Group")
-        settings.root_type = root_account.get("root_type", "Liability")
-    
-    # Set BPJS payable accounts
-    bpjs_payable = gl_accounts.get("bpjs_payable_accounts", {})
-    if bpjs_payable:
-        settings.bpjs_jht_payable = bpjs_payable.get("bpjs_jht_payable", {}).get("account_name", "")
-        settings.bpjs_jp_payable = bpjs_payable.get("bpjs_jp_payable", {}).get("account_name", "")
-        settings.bpjs_kesehatan_payable = bpjs_payable.get("bpjs_kesehatan_payable", {}).get("account_name", "")
-        settings.bpjs_jkk_payable = bpjs_payable.get("bpjs_jkk_payable", {}).get("account_name", "")
-        settings.bpjs_jkm_payable = bpjs_payable.get("bpjs_jkm_payable", {}).get("account_name", "")
-    
-    # Set BPJS expense accounts
-    bpjs_expense = gl_accounts.get("bpjs_expense_accounts", {})
-    if bpjs_expense:
-        settings.bpjs_jht_employer_expense = bpjs_expense.get("bpjs_jht_employer_expense", {}).get("account_name", "")
-        settings.bpjs_jp_employer_expense = bpjs_expense.get("bpjs_jp_employer_expense", {}).get("account_name", "")
-        settings.bpjs_kesehatan_employer_expense = bpjs_expense.get("bpjs_kesehatan_employer_expense", {}).get("account_name", "")
-        settings.bpjs_jkk_employer_expense = bpjs_expense.get("bpjs_jkk_employer_expense", {}).get("account_name", "")
-        settings.bpjs_jkm_employer_expense = bpjs_expense.get("bpjs_jkm_employer_expense", {}).get("account_name", "")
-    
-    # Set tax payable account
-    payable_accounts = gl_accounts.get("payable_accounts", {})
-    if payable_accounts:
-        settings.tax_payable_account = payable_accounts.get("hutang_pph21", {}).get("account_name", "")
-    
-    logger.info(_("Migrated GL accounts configuration"))
-    return True
+        # Set root account info
+        root_account = gl_accounts.get("root_account", {})
+        if root_account:
+            if hasattr(settings, "root_account_name"):
+                settings.root_account_name = root_account.get("account_name", "Payroll Accounts")
+            
+            if hasattr(settings, "root_account_type"):
+                settings.root_account_type = root_account.get("account_type", "Group")
+            
+            if hasattr(settings, "root_type"):
+                settings.root_type = root_account.get("root_type", "Liability")
+        
+        # Set BPJS payable accounts
+        bpjs_payable = gl_accounts.get("bpjs_payable_accounts", {})
+        if bpjs_payable:
+            account_mappings = [
+                ("bpjs_jht_payable", "bpjs_jht_payable"),
+                ("bpjs_jp_payable", "bpjs_jp_payable"),
+                ("bpjs_kesehatan_payable", "bpjs_kesehatan_payable"),
+                ("bpjs_jkk_payable", "bpjs_jkk_payable"),
+                ("bpjs_jkm_payable", "bpjs_jkm_payable")
+            ]
+            
+            for setting_field, config_key in account_mappings:
+                if hasattr(settings, setting_field) and config_key in bpjs_payable:
+                    account_info = bpjs_payable.get(config_key, {})
+                    setattr(settings, setting_field, account_info.get("account_name", ""))
+        
+        # Set BPJS expense accounts
+        bpjs_expense = gl_accounts.get("bpjs_expense_accounts", {})
+        if bpjs_expense:
+            expense_mappings = [
+                ("bpjs_jht_employer_expense", "bpjs_jht_employer_expense"),
+                ("bpjs_jp_employer_expense", "bpjs_jp_employer_expense"),
+                ("bpjs_kesehatan_employer_expense", "bpjs_kesehatan_employer_expense"),
+                ("bpjs_jkk_employer_expense", "bpjs_jkk_employer_expense"),
+                ("bpjs_jkm_employer_expense", "bpjs_jkm_employer_expense")
+            ]
+            
+            for setting_field, config_key in expense_mappings:
+                if hasattr(settings, setting_field) and config_key in bpjs_expense:
+                    account_info = bpjs_expense.get(config_key, {})
+                    setattr(settings, setting_field, account_info.get("account_name", ""))
+        
+        # Set tax payable account
+        payable_accounts = gl_accounts.get("payable_accounts", {})
+        if payable_accounts and hasattr(settings, "tax_payable_account"):
+            tax_account = payable_accounts.get("hutang_pph21", {})
+            settings.tax_payable_account = tax_account.get("account_name", "")
+        
+        debug_log("Migrated GL accounts configuration")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating GL accounts: {str(e)}", "error")
+        return False
 
 
 def migrate_bpjs_rules(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -246,51 +326,86 @@ def migrate_bpjs_rules(settings: "frappe.Document", config: Dict[str, Any]) -> b
     Returns:
         bool: True if successful, False otherwise
     """
-    bpjs_config = config.get("bpjs", {})
-    if not bpjs_config:
-        logger.warning(_("No BPJS configuration found in configuration"))
-        return False
+    try:
+        # Extract BPJS config from config
+        bpjs_config = config.get("bpjs", {})
+        if not bpjs_config:
+            debug_log("No BPJS configuration found", "warning")
+            return False
         
-    # Set base BPJS percentages
-    settings.kesehatan_employee_percent = flt(bpjs_config.get("kesehatan_employee_percent", 1.0))
-    settings.kesehatan_employer_percent = flt(bpjs_config.get("kesehatan_employer_percent", 4.0))
-    settings.kesehatan_max_salary = flt(bpjs_config.get("kesehatan_max_salary", 12000000.0))
-    settings.jht_employee_percent = flt(bpjs_config.get("jht_employee_percent", 2.0))
-    settings.jht_employer_percent = flt(bpjs_config.get("jht_employer_percent", 3.7))
-    settings.jp_employee_percent = flt(bpjs_config.get("jp_employee_percent", 1.0))
-    settings.jp_employer_percent = flt(bpjs_config.get("jp_employer_percent", 2.0))
-    settings.jp_max_salary = flt(bpjs_config.get("jp_max_salary", 9077600.0))
-    settings.jkk_percent = flt(bpjs_config.get("jkk_percent", 0.24))
-    settings.jkm_percent = flt(bpjs_config.get("jkm_percent", 0.3))
-    
-    # Set BPJS validation limits
-    validation_limits = bpjs_config.get("validation_limits", {})
-    if validation_limits:
-        settings.kesehatan_min_salary = flt(validation_limits.get("kesehatan_min_salary", 1000000.0))
-        settings.kesehatan_max_salary = flt(validation_limits.get("kesehatan_max_salary", 12000000.0))
-        settings.jp_min_salary = flt(validation_limits.get("jp_min_salary", 1000000.0))
-        settings.jp_max_salary = flt(validation_limits.get("jp_max_salary", 9077600.0))
-        settings.bpjs_calculation_precision = cint(validation_limits.get("calculation_precision", 2))
-        settings.bpjs_rounding_method = validation_limits.get("rounding_method", "round")
-    
-    # Set BPJS GL accounts if available
-    gl_accounts = bpjs_config.get("gl_accounts", {})
-    if gl_accounts:
-        settings.bpjs_payment_account = gl_accounts.get("payment_account", "")
-        settings.bpjs_expense_account = gl_accounts.get("expense_account", "")
-        settings.bpjs_kesehatan_account = gl_accounts.get("kesehatan_account", "")
-        settings.bpjs_kesehatan_expense_account = gl_accounts.get("kesehatan_expense_account", "")
-        settings.bpjs_jht_account = gl_accounts.get("jht_account", "")
-        settings.bpjs_jht_expense_account = gl_accounts.get("jht_expense_account", "")
-        settings.bpjs_jp_account = gl_accounts.get("jp_account", "")
-        settings.bpjs_jp_expense_account = gl_accounts.get("jp_expense_account", "")
-        settings.bpjs_jkk_account = gl_accounts.get("jkk_account", "")
-        settings.bpjs_jkk_expense_account = gl_accounts.get("jkk_expense_account", "")
-        settings.bpjs_jkm_account = gl_accounts.get("jkm_account", "")
-        settings.bpjs_jkm_expense_account = gl_accounts.get("jkm_expense_account", "")
-    
-    logger.info(_("Migrated BPJS rules"))
-    return True
+        # Define field mappings
+        percent_fields = [
+            ("kesehatan_employee_percent", 1.0),
+            ("kesehatan_employer_percent", 4.0),
+            ("jht_employee_percent", 2.0),
+            ("jht_employer_percent", 3.7),
+            ("jp_employee_percent", 1.0),
+            ("jp_employer_percent", 2.0),
+            ("jkk_percent", 0.24),
+            ("jkm_percent", 0.3)
+        ]
+        
+        # Set percentage fields
+        for field_name, default_value in percent_fields:
+            if hasattr(settings, field_name):
+                setattr(settings, field_name, flt(bpjs_config.get(field_name, default_value)))
+        
+        # Set salary threshold fields
+        if hasattr(settings, "kesehatan_max_salary"):
+            settings.kesehatan_max_salary = flt(bpjs_config.get("kesehatan_max_salary", 12000000.0))
+        
+        if hasattr(settings, "jp_max_salary"):
+            settings.jp_max_salary = flt(bpjs_config.get("jp_max_salary", 9077600.0))
+        
+        # Set BPJS validation limits
+        validation_limits = bpjs_config.get("validation_limits", {})
+        if validation_limits:
+            limit_fields = [
+                ("kesehatan_min_salary", 1000000.0),
+                ("kesehatan_max_salary", 12000000.0),
+                ("jp_min_salary", 1000000.0),
+                ("jp_max_salary", 9077600.0)
+            ]
+            
+            for field_name, default_value in limit_fields:
+                if hasattr(settings, field_name):
+                    setattr(settings, field_name, flt(validation_limits.get(field_name, default_value)))
+            
+            # Set calculation precision and rounding method
+            if hasattr(settings, "bpjs_calculation_precision"):
+                settings.bpjs_calculation_precision = cint(validation_limits.get("calculation_precision", 2))
+            
+            if hasattr(settings, "bpjs_rounding_method"):
+                settings.bpjs_rounding_method = validation_limits.get("rounding_method", "round")
+        
+        # Set BPJS GL accounts if available
+        gl_accounts = bpjs_config.get("gl_accounts", {})
+        if gl_accounts:
+            account_mappings = [
+                ("bpjs_payment_account", "payment_account"),
+                ("bpjs_expense_account", "expense_account"),
+                ("bpjs_kesehatan_account", "kesehatan_account"),
+                ("bpjs_kesehatan_expense_account", "kesehatan_expense_account"),
+                ("bpjs_jht_account", "jht_account"),
+                ("bpjs_jht_expense_account", "jht_expense_account"),
+                ("bpjs_jp_account", "jp_account"),
+                ("bpjs_jp_expense_account", "jp_expense_account"),
+                ("bpjs_jkk_account", "jkk_account"),
+                ("bpjs_jkk_expense_account", "jkk_expense_account"),
+                ("bpjs_jkm_account", "jkm_account"),
+                ("bpjs_jkm_expense_account", "jkm_expense_account")
+            ]
+            
+            for setting_field, config_key in account_mappings:
+                if hasattr(settings, setting_field) and config_key in gl_accounts:
+                    setattr(settings, setting_field, gl_accounts.get(config_key, ""))
+        
+        debug_log("Migrated BPJS rules")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating BPJS rules: {str(e)}", "error")
+        return False
 
 
 def migrate_salary_structure(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -304,32 +419,106 @@ def migrate_salary_structure(settings: "frappe.Document", config: Dict[str, Any]
     Returns:
         bool: True if successful, False otherwise
     """
-    struktur_gaji = config.get("struktur_gaji", {})
-    if not struktur_gaji:
-        logger.warning(_("No salary structure configuration found"))
-        return False
+    try:
+        # Extract salary structure from config
+        struktur_gaji = config.get("struktur_gaji", {})
+        if not struktur_gaji:
+            debug_log("No salary structure configuration found", "warning")
+            return False
         
-    # Set salary structure defaults
-    settings.basic_salary_percent = flt(struktur_gaji.get("basic_salary_percent", 75))
-    settings.meal_allowance_default = flt(struktur_gaji.get("meal_allowance", 750000.0))
-    settings.transport_allowance_default = flt(struktur_gaji.get("transport_allowance", 900000.0))
-    settings.umr_default = flt(struktur_gaji.get("umr_default", 4900000.0))
-    settings.position_allowance_percent = flt(struktur_gaji.get("position_allowance_percent", 7.5))
-    settings.working_days_default = cint(struktur_gaji.get("hari_kerja_default", 22))
+        # Define field mappings with defaults
+        field_mappings = [
+            ("basic_salary_percent", "basic_salary_percent", 75),
+            ("meal_allowance_default", "meal_allowance", 750000.0),
+            ("transport_allowance_default", "transport_allowance", 900000.0),
+            ("umr_default", "umr_default", 4900000.0),
+            ("position_allowance_percent", "position_allowance_percent", 7.5),
+            ("working_days_default", "hari_kerja_default", 22)
+        ]
+        
+        # Set salary structure fields
+        for setting_field, config_key, default_value in field_mappings:
+            if hasattr(settings, setting_field):
+                if config_key in struktur_gaji:
+                    if setting_field == "working_days_default":
+                        setattr(settings, setting_field, cint(struktur_gaji.get(config_key, default_value)))
+                    else:
+                        setattr(settings, setting_field, flt(struktur_gaji.get(config_key, default_value)))
+        
+        # Set global defaults
+        defaults = config.get("defaults", {})
+        if defaults:
+            default_mappings = [
+                ("default_currency", "currency", "IDR", str),
+                ("attendance_based_on_timesheet", "attendance_based_on_timesheet", 0, cint),
+                ("payroll_frequency", "payroll_frequency", "Monthly", str),
+                ("salary_slip_based_on", "salary_slip_based_on", "Leave Policy", str),
+                ("max_working_days_per_month", "max_working_days_per_month", 22, cint),
+                ("include_holidays_in_total_working_days", "include_holidays_in_total_working_days", 0, cint),
+                ("working_hours_per_day", "working_hours_per_day", 8, flt)
+            ]
+            
+            for setting_field, config_key, default_value, convert_func in default_mappings:
+                if hasattr(settings, setting_field) and config_key in defaults:
+                    setattr(settings, setting_field, convert_func(defaults.get(config_key, default_value)))
+        
+        debug_log("Migrated salary structure settings")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating salary structure: {str(e)}", "error")
+        return False
+
+
+def migrate_ptkp_ter_mapping(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
+    """
+    Migrate PTKP to TER mapping data from config to settings.
     
-    # Set global defaults
-    defaults = config.get("defaults", {})
-    if defaults:
-        settings.default_currency = defaults.get("currency", "IDR")
-        settings.attendance_based_on_timesheet = cint(defaults.get("attendance_based_on_timesheet", 0))
-        settings.payroll_frequency = defaults.get("payroll_frequency", "Monthly")
-        settings.salary_slip_based_on = defaults.get("salary_slip_based_on", "Leave Policy")
-        settings.max_working_days_per_month = cint(defaults.get("max_working_days_per_month", 22))
-        settings.include_holidays_in_total_working_days = cint(defaults.get("include_holidays_in_total_working_days", 0))
-        settings.working_hours_per_day = flt(defaults.get("working_hours_per_day", 8))
-    
-    logger.info(_("Migrated salary structure settings"))
-    return True
+    Args:
+        settings: Payroll Indonesia Settings document
+        config: Configuration dictionary
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Check if table exists in DocType
+        if not hasattr(settings, "ptkp_ter_mapping_table"):
+            debug_log("ptkp_ter_mapping_table child table not found in Payroll Indonesia Settings", "warning")
+            return False
+        
+        # Extract mapping data from config
+        mapping_data = config.get("ptkp_to_ter_mapping", {})
+        if not mapping_data:
+            debug_log("No PTKP to TER mapping found in configuration", "warning")
+            return False
+        
+        # Clear existing entries
+        settings.ptkp_ter_mapping_table = []
+        
+        # Add new entries
+        count = 0
+        for ptkp_code, ter_category in mapping_data.items():
+            settings.append("ptkp_ter_mapping_table", {
+                "ptkp_code": ptkp_code,
+                "ter_category": ter_category
+            })
+            count += 1
+        
+        # Alternative JSON backup if table insertion fails
+        try:
+            # Store as JSON if field exists
+            if hasattr(settings, "ptkp_ter_mapping_json"):
+                settings.ptkp_ter_mapping_json = json.dumps(mapping_data)
+        except Exception as e:
+            debug_log(f"Could not store PTKP to TER mapping as JSON backup: {str(e)}", "warning")
+        
+        debug_log(f"Migrated PTKP to TER mapping: {count} entries")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating PTKP to TER mapping: {str(e)}", "error")
+        return False
 
 
 def migrate_tax_settings(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -343,35 +532,57 @@ def migrate_tax_settings(settings: "frappe.Document", config: Dict[str, Any]) ->
     Returns:
         bool: True if successful, False otherwise
     """
-    tax_config = config.get("tax", {})
-    if not tax_config:
-        logger.warning(_("No tax configuration found"))
-        return False
+    try:
+        # Extract tax config from config
+        tax_config = config.get("tax", {})
+        if not tax_config:
+            debug_log("No tax configuration found", "warning")
+            return False
         
-    # Set basic tax settings
-    settings.umr_default = flt(tax_config.get("umr_default", 4900000.0))
-    settings.biaya_jabatan_percent = flt(tax_config.get("biaya_jabatan_percent", 5.0))
-    settings.biaya_jabatan_max = flt(tax_config.get("biaya_jabatan_max", 500000.0))
-    settings.npwp_mandatory = cint(tax_config.get("npwp_mandatory", 0))
-    settings.tax_calculation_method = tax_config.get("tax_calculation_method", "TER")
-    settings.use_ter = cint(tax_config.get("use_ter", 1))
-    settings.use_gross_up = cint(tax_config.get("use_gross_up", 0))
-    
-    # Set tax limits if available
-    tax_limits = tax_config.get("limits", {})
-    if tax_limits:
-        settings.minimum_taxable_income = flt(tax_limits.get("minimum_taxable_income", 4500000.0))
-        settings.maximum_non_taxable_pkp = flt(tax_limits.get("maximum_non_taxable_pkp", 54000000.0))
-        settings.minimum_ptkp = flt(tax_limits.get("minimum_ptkp", 54000000.0))
-        settings.maximum_tax_bracket = flt(tax_limits.get("maximum_tax_bracket", 5000000000.0))
-        settings.highest_tax_rate = flt(tax_limits.get("highest_tax_rate", 35.0))
-        settings.biaya_jabatan_min = flt(tax_limits.get("biaya_jabatan_min", 0.0))
-        settings.biaya_jabatan_max = flt(tax_limits.get("biaya_jabatan_max", 500000.0))
-        settings.biaya_jabatan_percent_max = flt(tax_limits.get("biaya_jabatan_percent_max", 5.0))
-        settings.tax_rounding_precision = cint(tax_limits.get("rounding_precision", 2))
-    
-    logger.info(_("Migrated tax settings"))
-    return True
+        # Define field mappings with defaults
+        field_mappings = [
+            ("umr_default", "umr_default", 4900000.0, flt),
+            ("biaya_jabatan_percent", "biaya_jabatan_percent", 5.0, flt),
+            ("biaya_jabatan_max", "biaya_jabatan_max", 500000.0, flt),
+            ("npwp_mandatory", "npwp_mandatory", 0, cint),
+            ("tax_calculation_method", "tax_calculation_method", "TER", str),
+            ("use_ter", "use_ter", 1, cint),
+            ("use_gross_up", "use_gross_up", 0, cint)
+        ]
+        
+        # Set tax settings fields
+        for setting_field, config_key, default_value, convert_func in field_mappings:
+            if hasattr(settings, setting_field) and config_key in tax_config:
+                setattr(settings, setting_field, convert_func(tax_config.get(config_key, default_value)))
+        
+        # Set tax limits if available
+        tax_limits = tax_config.get("limits", {})
+        if tax_limits:
+            limit_mappings = [
+                ("minimum_taxable_income", 4500000.0),
+                ("maximum_non_taxable_pkp", 54000000.0),
+                ("minimum_ptkp", 54000000.0),
+                ("maximum_tax_bracket", 5000000000.0),
+                ("highest_tax_rate", 35.0),
+                ("biaya_jabatan_min", 0.0),
+                ("biaya_jabatan_max", 500000.0),
+                ("biaya_jabatan_percent_max", 5.0),
+                ("tax_rounding_precision", 2)
+            ]
+            
+            for field_name, default_value in limit_mappings:
+                if hasattr(settings, field_name):
+                    if field_name == "tax_rounding_precision":
+                        setattr(settings, field_name, cint(tax_limits.get(field_name, default_value)))
+                    else:
+                        setattr(settings, field_name, flt(tax_limits.get(field_name, default_value)))
+        
+        debug_log("Migrated tax settings")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating tax settings: {str(e)}", "error")
+        return False
 
 
 def migrate_employee_types(settings: "frappe.Document", config: Dict[str, Any]) -> bool:
@@ -385,26 +596,43 @@ def migrate_employee_types(settings: "frappe.Document", config: Dict[str, Any]) 
     Returns:
         bool: True if successful, False otherwise
     """
-    if not frappe.db.table_exists("Tipe Karyawan Entry"):
-        logger.warning(_("Tipe Karyawan Entry table does not exist, skipping migration"))
+    try:
+        # Check if table exists in DocType
+        if not hasattr(settings, "tipe_karyawan_table"):
+            debug_log("tipe_karyawan_table child table not found in Payroll Indonesia Settings", "warning")
+            return False
+        
+        # Extract employee types from config
+        tipe_karyawan = config.get("tipe_karyawan", [])
+        if not tipe_karyawan:
+            debug_log("No employee types found in configuration", "warning")
+            return False
+        
+        # Clear existing entries
+        settings.tipe_karyawan_table = []
+        
+        # Add new entries
+        count = 0
+        for tipe in tipe_karyawan:
+            settings.append("tipe_karyawan_table", {
+                "tipe": tipe
+            })
+            count += 1
+        
+        # Alternative JSON backup if table insertion fails
+        try:
+            # Store as JSON if field exists
+            if hasattr(settings, "tipe_karyawan_json"):
+                settings.tipe_karyawan_json = json.dumps(tipe_karyawan)
+        except Exception as e:
+            debug_log(f"Could not store employee types as JSON backup: {str(e)}", "warning")
+        
+        debug_log(f"Migrated employee types: {count} entries")
+        return True
+        
+    except Exception as e:
+        debug_log(f"Error migrating employee types: {str(e)}", "error")
         return False
-        
-    tipe_karyawan = config.get("tipe_karyawan", [])
-    if not tipe_karyawan:
-        logger.warning(_("No employee types found in configuration"))
-        return False
-        
-    # Clear existing entries
-    settings.tipe_karyawan = []
-    
-    # Add new entries
-    for tipe in tipe_karyawan:
-        settings.append("tipe_karyawan", {
-            "tipe": tipe
-        })
-        
-    logger.info(_("Migrated employee types: {0} entries").format(len(tipe_karyawan)))
-    return True
 
 
 def migrate_all_settings(settings: "frappe.Document", config: Dict[str, Any]) -> Dict[str, bool]:
@@ -418,8 +646,11 @@ def migrate_all_settings(settings: "frappe.Document", config: Dict[str, Any]) ->
     Returns:
         Dict[str, bool]: Status of each migration section
     """
+    debug_log("Starting migration of all settings to Payroll Indonesia Settings")
+    
+    # Migrate each section
     results = {
-        "ptkp_data": migrate_ptkp_data(settings, config),
+        "ptkp_data": migrate_ptkp(settings, config),
         "tax_brackets": migrate_tax_brackets(settings, config),
         "ter_rates": migrate_ter_rates(settings, config),
         "ptkp_ter_mapping": migrate_ptkp_ter_mapping(settings, config),
@@ -432,19 +663,31 @@ def migrate_all_settings(settings: "frappe.Document", config: Dict[str, Any]) ->
     
     # Set app info
     app_info = config.get("app_info", {})
-    settings.app_version = app_info.get("version", "1.0.0")
-    settings.app_last_updated = app_info.get("last_updated", now_datetime())
-    settings.app_updated_by = app_info.get("updated_by", frappe.session.user)
+    if hasattr(settings, "app_version"):
+        settings.app_version = app_info.get("version", "1.0.0")
+    
+    if hasattr(settings, "app_last_updated"):
+        settings.app_last_updated = app_info.get("last_updated", now_datetime())
+    
+    if hasattr(settings, "app_updated_by"):
+        settings.app_updated_by = app_info.get("updated_by", frappe.session.user)
     
     # Set enabled flag
-    settings.enabled = 1
+    if hasattr(settings, "enabled"):
+        settings.enabled = 1
+    
+    # Log the results
+    succeeded = sum(1 for result in results.values() if result)
+    failed = len(results) - succeeded
+    
+    debug_log(f"Migration completed: {succeeded}/{len(results)} sections migrated successfully")
+    
+    if failed > 0:
+        debug_log(f"Failed to migrate {failed} sections", "warning")
+        
+        # Log the failed sections
+        for section, success in results.items():
+            if not success:
+                debug_log(f"Failed to migrate section: {section}", "warning")
     
     return results
-
-
-def cint(value: Any) -> int:
-    """Convert value to integer safely."""
-    try:
-        return int(value or 0)
-    except (ValueError, TypeError):
-        return 0
