@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 13:18:02 by dannyaudian
+# Last modified: 2025-07-02 15:24:36 by dannyaudian
 
 """
 This module is a compatibility layer that forwards utility functions
@@ -39,6 +39,11 @@ __all__ = [
 # Validation functions for hooks.py - keep these as they're specific to BPJS Settings
 def validate_settings(doc, method=None):
     """Wrapper for BPJSSettings.validate method with protection against recursion"""
+    # Skip if BPJS Settings table doesn't exist yet
+    if not frappe.db.table_exists("BPJS Settings"):
+        debug_log("BPJS Settings table does not exist yet, skipping validation", "BPJS Settings")
+        return
+        
     # Skip if already being validated
     if getattr(doc, "_validated", False):
         return
@@ -62,6 +67,11 @@ def validate_settings(doc, method=None):
 
 def setup_accounts(doc, method=None):
     """Wrapper for BPJSSettings.setup_accounts method with protection against recursion"""
+    # Skip if BPJS Settings or Account table doesn't exist yet
+    if not frappe.db.table_exists("BPJS Settings") or not frappe.db.table_exists("Account"):
+        debug_log("Required tables don't exist yet, skipping account setup", "BPJS Settings")
+        return
+        
     # Skip if already being processed
     if getattr(doc, "_setup_running", False):
         return
@@ -85,7 +95,12 @@ def sync_with_payroll_settings(bpjs_doc):
         bpjs_doc: BPJS Settings document
     """
     try:
-        # Check if Payroll Indonesia Settings exists
+        # Check if Payroll Indonesia Settings table exists
+        if not frappe.db.table_exists("Payroll Indonesia Settings"):
+            debug_log("Payroll Indonesia Settings table does not exist yet, skipping sync", "BPJS Settings Sync")
+            return
+            
+        # Check if BPJS doc exists
         if not bpjs_doc:
             return
 
@@ -94,6 +109,9 @@ def sync_with_payroll_settings(bpjs_doc):
 
         # Get central settings
         pi_settings = get_settings()
+        if not pi_settings:
+            debug_log("Could not get Payroll Indonesia Settings document", "BPJS Settings Sync")
+            return
 
         # Update Payroll Indonesia Settings with BPJS values
         fields_to_update = [
@@ -120,7 +138,7 @@ def sync_with_payroll_settings(bpjs_doc):
                 needs_update = True
 
         if needs_update:
-            pi_settings.app_last_updated = "2025-07-02 13:18:02"
+            pi_settings.app_last_updated = "2025-07-02 15:24:36"
             pi_settings.app_updated_by = "dannyaudian"
             pi_settings.flags.ignore_validate = True
             pi_settings.flags.ignore_permissions = True
