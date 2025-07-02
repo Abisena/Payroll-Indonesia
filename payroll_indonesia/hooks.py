@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 13:48:12 by dannyaudian
+# Last modified: 2025-07-02 16:03:46 by dannyaudian
 
 from __future__ import unicode_literals
 
@@ -49,8 +49,8 @@ doc_events = {
         "on_update": "payroll_indonesia.payroll_indonesia.tax.pph21_settings.on_update"
     },
     "BPJS Settings": {
-        "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.utils.validate_settings",
-        "on_update": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.utils.setup_accounts",
+        "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.bpjs_settings.validate",
+        "on_update": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.bpjs_settings.on_update",
     },
     "BPJS Account Mapping": {
         "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.validate",
@@ -64,6 +64,9 @@ doc_events = {
     "Company": {
         "after_insert": "payroll_indonesia.fixtures.setup.setup_company_accounts",
         "on_update": "payroll_indonesia.fixtures.setup.setup_company_accounts",
+    },
+    "Payment Entry": {
+        "on_submit": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.payment_hooks.on_payment_entry_submit",
     },
 }
 
