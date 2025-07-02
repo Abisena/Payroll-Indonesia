@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 15:24:36 by dannyaudian
+# Last modified: 2025-07-02 15:31:34 by dannyaudian
 
 """
 This module is a compatibility layer that forwards utility functions
@@ -10,6 +10,7 @@ from the central utils module to maintain backward compatibility.
 
 # FIXED: Use correct import path for get_default_config
 from payroll_indonesia.config.config import get_config as get_default_config
+import frappe
 
 # Import other utility functions
 from payroll_indonesia.payroll_indonesia.utils import (
@@ -40,7 +41,7 @@ __all__ = [
 def validate_settings(doc, method=None):
     """Wrapper for BPJSSettings.validate method with protection against recursion"""
     # Skip if BPJS Settings table doesn't exist yet
-    if not frappe.db.table_exists("BPJS Settings"):
+    if not frappe.db.exists("DocType", "BPJS Settings") or not frappe.db.table_exists("BPJS Settings"):
         debug_log("BPJS Settings table does not exist yet, skipping validation", "BPJS Settings")
         return
         
@@ -52,14 +53,21 @@ def validate_settings(doc, method=None):
     doc._validated = True
 
     try:
-        # Call the instance methods
-        doc.validate_data_types()
-        doc.validate_percentages()
-        doc.validate_max_salary()
-        doc.validate_account_types()
+        # Call the instance methods if they exist
+        if hasattr(doc, "validate_data_types"):
+            doc.validate_data_types()
+        if hasattr(doc, "validate_percentages"):
+            doc.validate_percentages()
+        if hasattr(doc, "validate_max_salary"):
+            doc.validate_max_salary()
+        if hasattr(doc, "validate_account_types"):
+            doc.validate_account_types()
 
         # Sync with Payroll Indonesia Settings
-        sync_with_payroll_settings(doc)
+        if hasattr(doc, "sync_with_payroll_settings"):
+            doc.sync_with_payroll_settings()
+        else:
+            sync_with_payroll_settings(doc)
     finally:
         # Always clean up flag
         doc._validated = False
@@ -68,7 +76,7 @@ def validate_settings(doc, method=None):
 def setup_accounts(doc, method=None):
     """Wrapper for BPJSSettings.setup_accounts method with protection against recursion"""
     # Skip if BPJS Settings or Account table doesn't exist yet
-    if not frappe.db.table_exists("BPJS Settings") or not frappe.db.table_exists("Account"):
+    if not frappe.db.exists("DocType", "BPJS Settings") or not frappe.db.table_exists("BPJS Settings") or not frappe.db.table_exists("Account"):
         debug_log("Required tables don't exist yet, skipping account setup", "BPJS Settings")
         return
         
@@ -80,8 +88,9 @@ def setup_accounts(doc, method=None):
     doc._setup_running = True
 
     try:
-        # Call the instance method
-        doc.setup_accounts()
+        # Call the instance method if it exists
+        if hasattr(doc, "setup_accounts"):
+            doc.setup_accounts()
     finally:
         # Always clean up flag
         doc._setup_running = False
@@ -96,7 +105,7 @@ def sync_with_payroll_settings(bpjs_doc):
     """
     try:
         # Check if Payroll Indonesia Settings table exists
-        if not frappe.db.table_exists("Payroll Indonesia Settings"):
+        if not frappe.db.exists("DocType", "Payroll Indonesia Settings") or not frappe.db.table_exists("Payroll Indonesia Settings"):
             debug_log("Payroll Indonesia Settings table does not exist yet, skipping sync", "BPJS Settings Sync")
             return
             
@@ -104,6 +113,7 @@ def sync_with_payroll_settings(bpjs_doc):
         if not bpjs_doc:
             return
 
+        # Ensure required attributes exist
         if not hasattr(bpjs_doc, "kesehatan_employee_percent"):
             return
 
@@ -138,7 +148,7 @@ def sync_with_payroll_settings(bpjs_doc):
                 needs_update = True
 
         if needs_update:
-            pi_settings.app_last_updated = "2025-07-02 15:24:36"
+            pi_settings.app_last_updated = "2025-07-02 15:31:34"
             pi_settings.app_updated_by = "dannyaudian"
             pi_settings.flags.ignore_validate = True
             pi_settings.flags.ignore_permissions = True
