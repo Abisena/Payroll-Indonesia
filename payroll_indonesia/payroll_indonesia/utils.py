@@ -258,10 +258,10 @@ def create_account(
 ) -> Optional[str]:
     """
     Create account using get_or_create_account.
-    
+
     This is a wrapper function to maintain backward compatibility
     with existing code that expects create_account function.
-    
+
     Args:
         company: Company name
         account_name: Account name (without company suffix)
@@ -269,7 +269,7 @@ def create_account(
         parent: Parent account (optional, will be determined automatically if not provided)
         root_type: Asset/Liability/Expense/Income
         is_group: 1 for group account, 0 otherwise
-        
+
     Returns:
         str: Full account name, or None if failed
     """
@@ -286,15 +286,15 @@ def create_account(
 def create_parent_liability_account(company: str) -> Optional[str]:
     """
     Create or get BPJS liability parent account.
-    
+
     Args:
         company: Company name
-        
+
     Returns:
         str: Full parent account name, or None if failed
     """
     debug_log(f"Creating BPJS liability parent account for company: {company}", "Account Setup")
-    
+
     parent = get_or_create_account(
         company=company,
         account_name="BPJS Liabilities",
@@ -302,7 +302,7 @@ def create_parent_liability_account(company: str) -> Optional[str]:
         is_group=1,
         root_type="Liability",
     )
-    
+
     if parent:
         debug_log(f"BPJS liability parent account: {parent}", "Account Setup")
     else:
@@ -310,7 +310,7 @@ def create_parent_liability_account(company: str) -> Optional[str]:
             f"Failed to create BPJS liability parent account for company: {company}",
             "Account Setup",
         )
-    
+
     return parent
 
 
@@ -318,15 +318,15 @@ def create_parent_liability_account(company: str) -> Optional[str]:
 def create_parent_expense_account(company: str) -> Optional[str]:
     """
     Create or get BPJS expense parent account.
-    
+
     Args:
         company: Company name
-        
+
     Returns:
         str: Full parent account name, or None if failed
     """
     debug_log(f"Creating BPJS expense parent account for company: {company}", "Account Setup")
-    
+
     parent = get_or_create_account(
         company=company,
         account_name="BPJS Expenses",
@@ -334,7 +334,7 @@ def create_parent_expense_account(company: str) -> Optional[str]:
         is_group=1,
         root_type="Expense",
     )
-    
+
     if parent:
         debug_log(f"BPJS expense parent account: {parent}", "Account Setup")
     else:
@@ -342,7 +342,7 @@ def create_parent_expense_account(company: str) -> Optional[str]:
             f"Failed to create BPJS expense parent account for company: {company}",
             "Account Setup",
         )
-    
+
     return parent
 
 
@@ -352,14 +352,14 @@ def find_parent_account(
 ) -> Optional[str]:
     """
     Find parent account based on type/root_type.
-    
+
     This is a wrapper around _find_parent_account to maintain backward compatibility.
-    
+
     Args:
         company: Company name
         account_type: Account type (Payable, Expense, etc.)
         root_type: Root type (Asset/Liability/Expense/Income)
-        
+
     Returns:
         str: Parent account name, or None if not found
     """

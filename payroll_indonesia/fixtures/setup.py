@@ -491,7 +491,13 @@ def setup_accounts(config=None, specific_company=None):
 
             # Create BPJS expense accounts from config
             _create_bpjs_accounts_from_config(
-                company.name, company.abbr, "bpjs_expense_accounts", expense_parent, "Expense", config, results
+                company.name,
+                company.abbr,
+                "bpjs_expense_accounts",
+                expense_parent,
+                "Expense",
+                config,
+                results,
             )
 
             # Create payroll expense accounts from config
@@ -518,7 +524,9 @@ def setup_accounts(config=None, specific_company=None):
     return results
 
 
-def _create_bpjs_accounts_from_config(company, company_abbr, account_key, parent, root_type, config, results):
+def _create_bpjs_accounts_from_config(
+    company, company_abbr, account_key, parent, root_type, config, results
+):
     """
     Create BPJS accounts from configuration
 
