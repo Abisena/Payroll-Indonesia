@@ -161,7 +161,7 @@ jinja = {
         "payroll_indonesia.config.config.get_live_config",
         # "payroll_indonesia.payroll_indonesia.utils.get_formatted_currency",
         # Tax calculation methods
-        "payroll_indonesia.override.salary_slip.tax_calculator:get_ptkp_value",
+        "payroll_indonesia.override.salary_slip.tax_calculator.get_ptkp_value",
         "payroll_indonesia.override.salary_slip.ter_calculator.get_ter_rate",
         # BPJS methods
         "payroll_indonesia.override.salary_slip.bpjs_calculator.calculate_components",
