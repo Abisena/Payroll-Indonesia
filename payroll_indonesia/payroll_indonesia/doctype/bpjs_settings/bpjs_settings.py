@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 by dannyaudian
+# Last modified: 2025-07-02 15:12:18 by dannyaudian
 
 """
 BPJS Settings DocType controller.
@@ -43,6 +43,10 @@ class BPJSSettings(Document):
 
     def onload(self) -> None:
         """Load additional data when document is loaded."""
+        # Check if table exists before syncing
+        if not frappe.db.table_exists("BPJS Settings"):
+            debug_log("BPJS Settings table does not exist yet, skipping onload", "BPJS Settings")
+            return
         self._sync_from_defaults()
 
     def validate(self) -> None:
@@ -52,6 +56,11 @@ class BPJSSettings(Document):
         Raises:
             frappe.ValidationError: If any percentage or salary threshold is invalid
         """
+        # Check if table exists before validation
+        if not frappe.db.table_exists("BPJS Settings"):
+            debug_log("BPJS Settings table does not exist yet, skipping validation", "BPJS Settings")
+            return
+            
         try:
             self._validate_percentages()
             self._validate_salary_thresholds()
@@ -67,6 +76,11 @@ class BPJSSettings(Document):
 
         Creates/updates BPJS accounts for all companies based on defaults.json.
         """
+        # Check if table exists before updates
+        if not frappe.db.table_exists("BPJS Settings"):
+            debug_log("BPJS Settings table does not exist yet, skipping on_update", "BPJS Settings")
+            return
+            
         try:
             # Ensure accounts are created for all companies
             self._setup_accounts_for_all_companies()
@@ -168,6 +182,11 @@ class BPJSSettings(Document):
 
     def _setup_accounts_for_all_companies(self) -> None:
         """Set up BPJS accounts for all active companies."""
+        # Check if Account table exists before attempting setup
+        if not frappe.db.table_exists("Account"):
+            debug_log("Account table does not exist yet, skipping account setup", "BPJS Settings")
+            return
+            
         companies = frappe.get_all("Company", pluck="name")
 
         if not companies:
@@ -338,6 +357,12 @@ class BPJSSettings(Document):
 
     def _update_salary_components(self) -> None:
         """Update BPJS components in active salary structures."""
+        # Check if Salary Structure table exists
+        if not frappe.db.table_exists("Salary Structure"):
+            debug_log("Salary Structure table does not exist yet, skipping component update", 
+                     "BPJS Settings")
+            return
+            
         config = get_default_config()
         component_map = config.get("bpjs_settings", {}).get("bpjs_components", {})
 
@@ -388,10 +413,18 @@ class BPJSSettings(Document):
 def setup_bpjs_settings() -> bool:
     """
     Create default BPJS Settings if they don't exist.
+    
+    Checks if the BPJS Settings table exists before attempting to create
+    settings to prevent errors during initial migrations.
 
     Returns:
         bool: True if successful, False otherwise
     """
+    # Check if BPJS Settings table exists
+    if not frappe.db.table_exists("BPJS Settings"):
+        debug_log("BPJS Settings table does not exist yet, skipping setup", "BPJS Settings")
+        return False
+        
     try:
         if frappe.db.exists("BPJS Settings", "BPJS Settings"):
             debug_log("BPJS Settings already exist", "BPJS Settings")
@@ -435,10 +468,18 @@ def setup_bpjs_settings() -> bool:
 def update_bpjs_settings() -> bool:
     """
     Update BPJS Settings from defaults.json.
+    
+    Checks if the BPJS Settings table exists before attempting to update
+    settings to prevent errors during initial migrations.
 
     Returns:
         bool: True if successful, False otherwise
     """
+    # Check if BPJS Settings table exists
+    if not frappe.db.table_exists("BPJS Settings"):
+        debug_log("BPJS Settings table does not exist yet, skipping update", "BPJS Settings")
+        return False
+        
     try:
         if not frappe.db.exists("BPJS Settings", "BPJS Settings"):
             return setup_bpjs_settings()
