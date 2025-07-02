@@ -108,7 +108,11 @@ class PayrollIndonesiaSettings(Document):
                 _("PTKP values must be defined for tax calculation"), indicator="orange"
             )
 
-        if self.use_ter and hasattr(self, "ptkp_ter_mapping_table") and not self.ptkp_ter_mapping_table:
+        if (
+            self.use_ter
+            and hasattr(self, "ptkp_ter_mapping_table")
+            and not self.ptkp_ter_mapping_table
+        ):
             frappe.msgprint(
                 _("PTKP to TER mappings should be defined when using TER calculation method"),
                 indicator="orange",
@@ -481,23 +485,28 @@ class PayrollIndonesiaSettings(Document):
     def _populate_default_values(self) -> None:
         """
         Populate default values from configuration if fields are empty.
-        
+
         Checks if tables exist before performing any database operations.
         Loads defaults for tax settings, employee types, and account mappings.
         """
         # First check if the main table exists
         if not frappe.db.table_exists("Payroll Indonesia Settings"):
-            logger.warning("Payroll Indonesia Settings table does not exist yet, skipping defaults population")
+            logger.warning(
+                "Payroll Indonesia Settings table does not exist yet, skipping defaults population"
+            )
             return
-            
+
         # Get configuration
         config = get_live_config()
         defaults_loaded = False
 
         # Check and load PTKP values if empty and if child table exists
         ptkp_child_table = "Payroll Indonesia PTKP"
-        if (hasattr(self, "ptkp_table") and (not self.ptkp_table or len(self.ptkp_table) == 0) 
-                and frappe.db.table_exists(ptkp_child_table)):
+        if (
+            hasattr(self, "ptkp_table")
+            and (not self.ptkp_table or len(self.ptkp_table) == 0)
+            and frappe.db.table_exists(ptkp_child_table)
+        ):
             ptkp_values = config.get("ptkp", {})
             if ptkp_values:
                 # Clear existing rows if any
@@ -516,8 +525,11 @@ class PayrollIndonesiaSettings(Document):
 
         # Check and load tax brackets if empty and if child table exists
         tax_bracket_child_table = "Payroll Indonesia Tax Bracket"
-        if (hasattr(self, "tax_brackets_table") and (not self.tax_brackets_table or len(self.tax_brackets_table) == 0)
-                and frappe.db.table_exists(tax_bracket_child_table)):
+        if (
+            hasattr(self, "tax_brackets_table")
+            and (not self.tax_brackets_table or len(self.tax_brackets_table) == 0)
+            and frappe.db.table_exists(tax_bracket_child_table)
+        ):
             tax_brackets = config.get("tax_brackets", [])
             if tax_brackets:
                 # Clear existing rows if any
@@ -533,12 +545,17 @@ class PayrollIndonesiaSettings(Document):
                 defaults_loaded = True
                 logger.info("Populated default tax brackets")
         elif not frappe.db.table_exists(tax_bracket_child_table):
-            logger.warning(f"{tax_bracket_child_table} table does not exist yet, skipping tax brackets population")
+            logger.warning(
+                f"{tax_bracket_child_table} table does not exist yet, skipping tax brackets population"
+            )
 
         # Check and load employee types if empty and if child table exists
         employee_type_child_table = "Payroll Indonesia Employee Type"
-        if (hasattr(self, "tipe_karyawan") and (not self.tipe_karyawan or len(self.tipe_karyawan) == 0)
-                and frappe.db.table_exists(employee_type_child_table)):
+        if (
+            hasattr(self, "tipe_karyawan")
+            and (not self.tipe_karyawan or len(self.tipe_karyawan) == 0)
+            and frappe.db.table_exists(employee_type_child_table)
+        ):
             tipe_karyawan = config.get("tipe_karyawan", [])
             if tipe_karyawan:
                 # Clear existing rows if any
@@ -552,7 +569,9 @@ class PayrollIndonesiaSettings(Document):
                 defaults_loaded = True
                 logger.info("Populated default employee types")
         elif not frappe.db.table_exists(employee_type_child_table):
-            logger.warning(f"{employee_type_child_table} table does not exist yet, skipping employee types population")
+            logger.warning(
+                f"{employee_type_child_table} table does not exist yet, skipping employee types population"
+            )
 
         # If defaults were loaded, update the database
         if defaults_loaded:

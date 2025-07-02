@@ -214,9 +214,7 @@ def calculate_monthly_pph_progressive(slip: Any) -> Dict[str, Any]:
     annual_tax, tax_details = calculate_progressive_tax(pkp)
     monthly_tax = annual_tax / MONTHS_PER_YEAR
 
-    update_slip_fields(
-        slip, {"biaya_jabatan": biaya_jabatan, "netto": netto, "pph21": monthly_tax}
-    )
+    update_slip_fields(slip, {"biaya_jabatan": biaya_jabatan, "netto": netto, "pph21": monthly_tax})
 
     result = {
         "tax_method": "PROGRESSIVE",
@@ -257,9 +255,7 @@ def calculate_december_pph(slip: Any) -> Dict[str, Any]:
     annual_gross = ytd.get("gross", 0) + current_gross
     annual_bpjs = ytd.get("bpjs", 0) + current_bpjs
 
-    annual_biaya_jabatan = min(
-        annual_gross * (BIAYA_JABATAN_PERCENT / 100), BIAYA_JABATAN_MAX * 12
-    )
+    annual_biaya_jabatan = min(annual_gross * (BIAYA_JABATAN_PERCENT / 100), BIAYA_JABATAN_MAX * 12)
     annual_netto = annual_gross - annual_biaya_jabatan - annual_bpjs
     ptkp = get_ptkp_value(tax_status)
     pkp = max(0, annual_netto - ptkp)

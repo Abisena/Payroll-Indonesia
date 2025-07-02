@@ -37,7 +37,7 @@ def before_install():
     except Exception as e:
         frappe.log_error(
             f"Error during before_install: {str(e)}\n\n{frappe.get_traceback()}",
-            "Payroll Indonesia Installation Error"
+            "Payroll Indonesia Installation Error",
         )
         debug_log(f"Error during before_install: {str(e)}", "Payroll Indonesia Installation Error")
 
@@ -63,7 +63,7 @@ def after_install():
     except Exception as e:
         frappe.log_error(
             f"Error during account setup: {str(e)}\n\n{frappe.get_traceback()}",
-            "Account Setup Error"
+            "Account Setup Error",
         )
         debug_log(f"Error during account setup: {str(e)}", "Account Setup Error")
 
@@ -76,7 +76,7 @@ def after_install():
     except Exception as e:
         frappe.log_error(
             f"Error during supplier setup: {str(e)}\n\n{frappe.get_traceback()}",
-            "Supplier Setup Error"
+            "Supplier Setup Error",
         )
         debug_log(f"Error during supplier setup: {str(e)}", "Supplier Setup Error")
 
@@ -85,8 +85,7 @@ def after_install():
         debug_log("PPh 21 setup completed", "Installation")
     except Exception as e:
         frappe.log_error(
-            f"Error during PPh 21 setup: {str(e)}\n\n{frappe.get_traceback()}",
-            "PPh 21 Setup Error"
+            f"Error during PPh 21 setup: {str(e)}\n\n{frappe.get_traceback()}", "PPh 21 Setup Error"
         )
         debug_log(f"Error during PPh 21 setup: {str(e)}", "PPh 21 Setup Error")
 
@@ -96,17 +95,18 @@ def after_install():
     except Exception as e:
         frappe.log_error(
             f"Error during salary components setup: {str(e)}\n\n{frappe.get_traceback()}",
-            "Salary Components Setup Error"
+            "Salary Components Setup Error",
         )
-        debug_log(f"Error during salary components setup: {str(e)}", "Salary Components Setup Error")
+        debug_log(
+            f"Error during salary components setup: {str(e)}", "Salary Components Setup Error"
+        )
 
     try:
         results["bpjs_setup"] = setup_bpjs_settings()
         debug_log("BPJS setup completed", "Installation")
     except Exception as e:
         frappe.log_error(
-            f"Error during BPJS setup: {str(e)}\n\n{frappe.get_traceback()}",
-            "BPJS Setup Error"
+            f"Error during BPJS setup: {str(e)}\n\n{frappe.get_traceback()}", "BPJS Setup Error"
         )
         debug_log(f"Error during BPJS setup: {str(e)}", "BPJS Setup Error")
 
@@ -115,7 +115,7 @@ def after_install():
     except Exception as e:
         frappe.log_error(
             f"Error committing changes: {str(e)}\n\n{frappe.get_traceback()}",
-            "Installation Database Error"
+            "Installation Database Error",
         )
         debug_log(f"Error committing changes: {str(e)}", "Installation Database Error")
 
@@ -134,6 +134,7 @@ def after_sync():
                 from payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.bpjs_settings import (
                     update_bpjs_settings,
                 )
+
                 updated = update_bpjs_settings()
                 debug_log(f"Updated BPJS Settings: {updated}", "App Sync")
 
@@ -147,7 +148,7 @@ def after_sync():
                     if frappe.db.table_exists("PPh 21 TER Table"):
                         has_new_format = frappe.db.exists(
                             "PPh 21 TER Table",
-                            {"status_pajak": ["in", ["TER A", "TER B", "TER C"]]}
+                            {"status_pajak": ["in", ["TER A", "TER B", "TER C"]]},
                         )
                         if not has_new_format:
                             setup_pph21_ter(config, force_update=True)
@@ -155,7 +156,7 @@ def after_sync():
     except Exception as e:
         frappe.log_error(
             f"Error during after_sync: {str(e)}\n\n{frappe.get_traceback()}",
-            "Payroll Indonesia Sync Error"
+            "Payroll Indonesia Sync Error",
         )
         debug_log(f"Error during after_sync: {str(e)}", "Payroll Indonesia Sync Error")
 
@@ -200,12 +201,13 @@ def setup_bpjs_settings():
     from payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.bpjs_settings import (
         setup_bpjs_settings as bpjs_setup_func,
     )
+
     try:
         return bpjs_setup_func()
     except Exception as e:
         frappe.log_error(
             f"Error setting up BPJS Settings: {str(e)}\n\n{frappe.get_traceback()}",
-            "BPJS Setup Error"
+            "BPJS Setup Error",
         )
         debug_log(f"Error setting up BPJS Settings: {str(e)}", "BPJS Setup Error")
         return False
@@ -239,7 +241,7 @@ def update_ptkp_ter_mapping(config):
     except Exception as e:
         frappe.log_error(
             f"Error updating PTKP to TER mapping: {str(e)}\n\n{frappe.get_traceback()}",
-            "TER Mapping Error"
+            "TER Mapping Error",
         )
         debug_log(f"Error updating PTKP to TER mapping: {str(e)}", "TER Mapping Error")
         return False
@@ -261,16 +263,23 @@ def setup_accounts(config=None, specific_company=None):
         create_parent_liability_account,
         create_parent_expense_account,
     )
+
     results = {"success": True, "created": [], "skipped": [], "errors": []}
     companies = []
     if specific_company:
         if frappe.db.table_exists("Company"):
-            companies = frappe.get_all("Company", filters={"name": specific_company}, fields=["name", "abbr"])
-            debug_log(f"Setting up accounts for specific company: {specific_company}", "Account Setup")
+            companies = frappe.get_all(
+                "Company", filters={"name": specific_company}, fields=["name", "abbr"]
+            )
+            debug_log(
+                f"Setting up accounts for specific company: {specific_company}", "Account Setup"
+            )
     else:
         if frappe.db.table_exists("Company"):
             companies = frappe.get_all("Company", fields=["name", "abbr"])
-            debug_log(f"Setting up accounts for all companies: {len(companies)} found", "Account Setup")
+            debug_log(
+                f"Setting up accounts for all companies: {len(companies)} found", "Account Setup"
+            )
     if not companies:
         debug_log("No companies found for account setup", "Account Setup")
         results["success"] = False
@@ -329,7 +338,7 @@ def create_supplier_group():
     except Exception as e:
         frappe.log_error(
             f"Failed to create supplier group: {str(e)}\n\n{frappe.get_traceback()}",
-            "Supplier Setup Error"
+            "Supplier Setup Error",
         )
         debug_log(f"Failed to create supplier group: {str(e)}", "Supplier Setup Error")
         return False
@@ -353,7 +362,11 @@ def create_bpjs_supplier(config):
             return True
         supplier_group = supplier_config.get("supplier_group", "Government")
         if not frappe.db.exists("Supplier Group", supplier_group):
-            supplier_group = "BPJS Provider" if frappe.db.exists("Supplier Group", "BPJS Provider") else "Government"
+            supplier_group = (
+                "BPJS Provider"
+                if frappe.db.exists("Supplier Group", "BPJS Provider")
+                else "Government"
+            )
             if not frappe.db.exists("Supplier Group", supplier_group):
                 debug_log("No suitable supplier group exists", "Supplier Setup")
                 return False
@@ -371,7 +384,7 @@ def create_bpjs_supplier(config):
     except Exception as e:
         frappe.log_error(
             f"Failed to create BPJS supplier: {str(e)}\n\n{frappe.get_traceback()}",
-            "Supplier Setup Error"
+            "Supplier Setup Error",
         )
         debug_log(f"Failed to create BPJS supplier: {str(e)}", "Supplier Setup Error")
         return False
@@ -392,8 +405,7 @@ def setup_pph21(config):
         return ter_result and tax_slab_result
     except Exception as e:
         frappe.log_error(
-            f"Error in PPh 21 setup: {str(e)}\n\n{frappe.get_traceback()}",
-            "PPh 21 Setup Error"
+            f"Error in PPh 21 setup: {str(e)}\n\n{frappe.get_traceback()}", "PPh 21 Setup Error"
         )
         debug_log(f"Error in PPh 21 setup: {str(e)}", "PPh 21 Setup Error")
         return False
@@ -459,8 +471,7 @@ def setup_pph21_defaults(config):
         return settings
     except Exception as e:
         frappe.log_error(
-            f"Error setting up PPh 21: {str(e)}\n\n{frappe.get_traceback()}",
-            "PPh 21 Setup Error"
+            f"Error setting up PPh 21: {str(e)}\n\n{frappe.get_traceback()}", "PPh 21 Setup Error"
         )
         debug_log(f"Error setting up PPh 21: {str(e)}", "PPh 21 Setup Error")
         return None
@@ -506,8 +517,7 @@ def setup_pph21_ter(config, force_update=False):
         return count > 0
     except Exception as e:
         frappe.log_error(
-            f"Error setting up TER rates: {str(e)}\n\n{frappe.get_traceback()}",
-            "TER Setup Error"
+            f"Error setting up TER rates: {str(e)}\n\n{frappe.get_traceback()}", "TER Setup Error"
         )
         debug_log(f"Error setting up TER rates: {str(e)}", "TER Setup Error")
         return False
@@ -558,7 +568,7 @@ def setup_income_tax_slab(config):
     except Exception as e:
         frappe.log_error(
             f"Error creating income tax slab: {str(e)}\n\n{frappe.get_traceback()}",
-            "Tax Slab Setup Error"
+            "Tax Slab Setup Error",
         )
         debug_log(f"Error creating income tax slab: {str(e)}", "Tax Slab Setup Error")
         return False
@@ -599,7 +609,9 @@ def setup_salary_components(config):
                 if "is_tax_applicable" in comp_data:
                     component.is_tax_applicable = comp_data.get("is_tax_applicable")
                 if "variable_based_on_taxable_salary" in comp_data:
-                    component.variable_based_on_taxable_salary = comp_data.get("variable_based_on_taxable_salary")
+                    component.variable_based_on_taxable_salary = comp_data.get(
+                        "variable_based_on_taxable_salary"
+                    )
                 if "statistical_component" in comp_data:
                     component.statistical_component = comp_data.get("statistical_component")
                 if "do_not_include_in_total" in comp_data:
@@ -612,20 +624,24 @@ def setup_salary_components(config):
                 component.flags.ignore_permissions = True
                 if is_new:
                     component.insert(ignore_permissions=True)
-                    debug_log(f"Created salary component: {component_name}", "Salary Component Setup")
+                    debug_log(
+                        f"Created salary component: {component_name}", "Salary Component Setup"
+                    )
                 else:
                     component.save(ignore_permissions=True)
-                    debug_log(f"Updated salary component: {component_name}", "Salary Component Setup")
+                    debug_log(
+                        f"Updated salary component: {component_name}", "Salary Component Setup"
+                    )
                 success_count += 1
         debug_log(
             f"Processed {success_count} of {total_count} salary components successfully",
-            "Salary Component Setup"
+            "Salary Component Setup",
         )
         return success_count > 0
     except Exception as e:
         frappe.log_error(
             f"Error setting up salary components: {str(e)}\n\n{frappe.get_traceback()}",
-            "Salary Component Setup Error"
+            "Salary Component Setup Error",
         )
         debug_log(f"Error setting up salary components: {str(e)}", "Salary Component Setup Error")
         return False
@@ -645,5 +661,5 @@ def display_installation_summary(results, config):
         "===================================\n"
         "PMK 168/2023 Implementation: DONE\n"
         "===================================",
-        "Installation Summary"
+        "Installation Summary",
     )
