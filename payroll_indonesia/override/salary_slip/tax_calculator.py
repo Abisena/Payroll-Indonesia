@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-29 02:30:12 by dannyaudian
+# Last modified: 2025-07-02 by dannyaudian
 
 """
 Tax calculator module - PPh 21 (progresif & tahunan)
@@ -10,8 +10,6 @@ Tax calculator module - PPh 21 (progresif & tahunan)
 import logging
 from typing import Any, Dict, List, Tuple
 
-# from typing import Any, Dict, List, Tuple, TYPE_CHECKING
-
 from payroll_indonesia.config.config import get_live_config
 from payroll_indonesia.constants import (
     MONTHS_PER_YEAR,
@@ -19,13 +17,10 @@ from payroll_indonesia.constants import (
     BIAYA_JABATAN_MAX,
 )
 
-# if TYPE_CHECKING:
-#     from frappe.model.document import Document
-
 logger = logging.getLogger("tax_calc")
 
 
-def _get_tax_brackets() -> List[Dict[str, Any]]:
+def get_tax_brackets() -> List[Dict[str, Any]]:
     """
     Get progressive tax brackets from config.
     Returns sorted list of brackets by income_from.
@@ -46,7 +41,7 @@ def _get_tax_brackets() -> List[Dict[str, Any]]:
     ]
 
 
-def _get_ptkp_value(tax_status: str) -> float:
+def get_ptkp_value(tax_status: str) -> float:
     """
     Get annual PTKP (non-taxable income) value based on tax status.
     """
@@ -75,7 +70,7 @@ def _get_ptkp_value(tax_status: str) -> float:
     return float(default_values.get(tax_status, 54000000))
 
 
-def _calculate_progressive_tax(pkp: float) -> Tuple[float, List[Dict[str, Any]]]:
+def calculate_progressive_tax(pkp: float) -> Tuple[float, List[Dict[str, Any]]]:
     """
     Calculate PPh 21 using progressive method.
     Returns total tax and detailed breakdown per bracket.
@@ -83,7 +78,7 @@ def _calculate_progressive_tax(pkp: float) -> Tuple[float, List[Dict[str, Any]]]
     if pkp <= 0:
         return 0.0, []
 
-    brackets = _get_tax_brackets()
+    brackets = get_tax_brackets()
     tax = 0.0
     details = []
     remaining = pkp
@@ -140,7 +135,7 @@ def _calculate_progressive_tax(pkp: float) -> Tuple[float, List[Dict[str, Any]]]
     return tax, details
 
 
-def _get_tax_status(slip: Any) -> str:
+def get_tax_status(slip: Any) -> str:
     """Extract tax status from employee document or return default."""
     employee = getattr(slip, "employee_doc", None)
     default_status = "TK0"
@@ -154,12 +149,11 @@ def _get_tax_status(slip: Any) -> str:
     return default_status
 
 
-def _get_ytd_totals(slip: Any) -> Dict[str, float]:
+def get_ytd_totals(slip: Any) -> Dict[str, float]:
     """
     Get year-to-date totals for gross pay, BPJS, and PPh 21.
     """
-    # Extract year and month from slip start date
-    year, month = _get_slip_year_month(slip)
+    year, month = get_slip_year_month(slip)
     employee = getattr(slip, "employee", "unknown")
 
     logger.info(f"Fetching YTD totals for employee {employee}, {year}-{month}")
@@ -169,7 +163,7 @@ def _get_ytd_totals(slip: Any) -> Dict[str, float]:
     return {"gross": 0.0, "bpjs": 0.0, "pph21": 0.0}
 
 
-def _get_slip_year_month(slip: Any) -> Tuple[int, int]:
+def get_slip_year_month(slip: Any) -> Tuple[int, int]:
     """Extract year and month from salary slip start date."""
     from datetime import datetime
 
@@ -183,7 +177,7 @@ def _get_slip_year_month(slip: Any) -> Tuple[int, int]:
     return now.year, now.month
 
 
-def _is_december_calculation(slip: Any) -> bool:
+def is_december_calculation(slip: Any) -> bool:
     """
     Determine if this slip should use December calculation logic.
     Returns True if month is December or is_december_override flag is set.
@@ -193,11 +187,11 @@ def _is_december_calculation(slip: Any) -> bool:
         return True
 
     # Check if month is December
-    _, month = _get_slip_year_month(slip)
+    _, month = get_slip_year_month(slip)
     return month == 12
 
 
-def _update_slip_fields(slip: Any, values: Dict[str, Any]) -> None:
+def update_slip_fields(slip: Any, values: Dict[str, Any]) -> None:
     """Update salary slip fields with calculated values."""
     for field, value in values.items():
         if hasattr(slip, field):
@@ -208,36 +202,22 @@ def calculate_monthly_pph_progressive(slip: Any) -> Dict[str, Any]:
     """
     Calculate PPh 21 using progressive rates for non-December months.
     """
-    # Get employee tax status
-    tax_status = _get_tax_status(slip)
-
-    # Get income values
+    tax_status = get_tax_status(slip)
     gross_pay = float(getattr(slip, "gross_pay", 0))
     biaya_jabatan = min(gross_pay * (BIAYA_JABATAN_PERCENT / 100), BIAYA_JABATAN_MAX)
     total_bpjs = float(getattr(slip, "total_bpjs", 0))
 
-    # Calculate netto monthly income
     netto = gross_pay - biaya_jabatan - total_bpjs
-
-    # Get PTKP value (annual)
-    ptkp = _get_ptkp_value(tax_status)
-
-    # Annualize income for tax calculation
+    ptkp = get_ptkp_value(tax_status)
     annual_netto = netto * MONTHS_PER_YEAR
     pkp = max(0, annual_netto - ptkp)
-
-    # Calculate annual tax
-    annual_tax, tax_details = _calculate_progressive_tax(pkp)
-
-    # Calculate monthly tax
+    annual_tax, tax_details = calculate_progressive_tax(pkp)
     monthly_tax = annual_tax / MONTHS_PER_YEAR
 
-    # Update slip fields
-    _update_slip_fields(
+    update_slip_fields(
         slip, {"biaya_jabatan": biaya_jabatan, "netto": netto, "pph21": monthly_tax}
     )
 
-    # Prepare result for reporting
     result = {
         "tax_method": "PROGRESSIVE",
         "tax_status": tax_status,
@@ -263,64 +243,43 @@ def calculate_december_pph(slip: Any) -> Dict[str, Any]:
     Calculate year-end tax correction for December.
     Uses actual YTD income for more accurate annual tax calculation.
     """
-    # Check if running as December (based on month or override flag)
-    is_december = _is_december_calculation(slip)
+    is_december = is_december_calculation(slip)
     if not is_december:
         logger.info(
             f"Non-December month detected for {getattr(slip, 'employee', 'unknown')}, using monthly calculation"
         )
         return calculate_monthly_pph_progressive(slip)
 
-    # Get employee tax status
-    tax_status = _get_tax_status(slip)
-
-    # Get current income values
+    tax_status = get_tax_status(slip)
     current_gross = float(getattr(slip, "gross_pay", 0))
     current_bpjs = float(getattr(slip, "total_bpjs", 0))
-
-    # Get YTD totals excluding current month
-    ytd = _get_ytd_totals(slip)
-
-    # Calculate annual totals including current month
+    ytd = get_ytd_totals(slip)
     annual_gross = ytd.get("gross", 0) + current_gross
     annual_bpjs = ytd.get("bpjs", 0) + current_bpjs
 
-    # Calculate annual biaya jabatan (capped at annual max)
     annual_biaya_jabatan = min(
-        annual_gross * (BIAYA_JABATAN_PERCENT / 100), BIAYA_JABATAN_MAX * 12  # Annual cap
+        annual_gross * (BIAYA_JABATAN_PERCENT / 100), BIAYA_JABATAN_MAX * 12
     )
-
-    # Calculate annual netto
     annual_netto = annual_gross - annual_biaya_jabatan - annual_bpjs
-
-    # Get PTKP value
-    ptkp = _get_ptkp_value(tax_status)
-
-    # Calculate PKP
+    ptkp = get_ptkp_value(tax_status)
     pkp = max(0, annual_netto - ptkp)
-
-    # Calculate annual tax
-    annual_tax, tax_details = _calculate_progressive_tax(pkp)
-
-    # Calculate correction (annual tax minus YTD tax paid)
+    annual_tax, tax_details = calculate_progressive_tax(pkp)
     ytd_tax_paid = ytd.get("pph21", 0)
     correction = annual_tax - ytd_tax_paid
 
-    # Update slip fields
     monthly_biaya_jabatan = annual_biaya_jabatan / 12
     monthly_netto = annual_netto / 12
 
-    _update_slip_fields(
+    update_slip_fields(
         slip,
         {
             "biaya_jabatan": monthly_biaya_jabatan,
             "netto": monthly_netto,
             "koreksi_pph21": correction,
-            "pph21": correction,  # December tax is the correction amount
+            "pph21": correction,
         },
     )
 
-    # Prepare result for reporting
     result = {
         "tax_method": "PROGRESSIVE_DECEMBER",
         "tax_status": tax_status,
