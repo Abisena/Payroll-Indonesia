@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-29 04:11:36 by dannyaudian
+# Last modified: 2025-07-02 13:48:12 by dannyaudian
 
 from __future__ import unicode_literals
 
@@ -20,7 +20,7 @@ required_apps = ["erpnext", "hrms"]
 before_install = "payroll_indonesia.fixtures.setup.before_install"
 after_install = "payroll_indonesia.fixtures.setup.after_install"
 after_sync = "payroll_indonesia.fixtures.setup.after_sync"
-after_migrate = "payroll_indonesia.fixtures.setup.setup_all_accounts"
+after_migrate = "payroll_indonesia.fixtures.setup.setup_accounts"
 
 # List view JS
 doctype_list_js = {
@@ -81,10 +81,7 @@ fixtures = [
     {"doctype": "Client Script", "filters": [["module", "=", "Payroll Indonesia"]]},
     {"doctype": "Workspace", "filters": [["module", "=", "Payroll Indonesia"]]},
     {"doctype": "Report", "filters": [["module", "=", "Payroll Indonesia"]]},
-    {"doctype": "Print Format", "filters": [["name", "in", [
-        "BPJS Payment Summary Report",
-        "Payslip Indonesia Dynamic"
-    ]]]},
+    {"doctype": "Print Format", "filters": [["name", "in", ["BPJS Payment Summary Report"]]]},
     # Master Data
     {"doctype": "Supplier Group", "filters": [["name", "in", ["BPJS Provider", "Tax Authority"]]]},
     {
