@@ -98,19 +98,24 @@ class PayrollIndonesiaSettings(Document):
 
         Ensures required tax configuration tables are properly defined.
         """
-        if not self.ptkp_table:
+        # Only validate if the tables exist
+        if not frappe.db.table_exists("Payroll Indonesia Settings"):
+            logger.warning("Payroll Indonesia Settings table does not exist yet")
+            return
+
+        if hasattr(self, "ptkp_table") and not self.ptkp_table:
             frappe.msgprint(
                 _("PTKP values must be defined for tax calculation"), indicator="orange"
             )
 
-        if self.use_ter and not self.ptkp_ter_mapping_table:
+        if self.use_ter and hasattr(self, "ptkp_ter_mapping_table") and not self.ptkp_ter_mapping_table:
             frappe.msgprint(
                 _("PTKP to TER mappings should be defined when using TER calculation method"),
                 indicator="orange",
             )
 
         # Validate tax brackets
-        if not self.tax_brackets_table:
+        if hasattr(self, "tax_brackets_table") and not self.tax_brackets_table:
             frappe.msgprint(
                 _("Tax brackets should be defined for tax calculation"), indicator="orange"
             )
@@ -143,6 +148,11 @@ class PayrollIndonesiaSettings(Document):
         Uses central validation helpers and ensures BPJS percentages
         are within valid ranges defined in configuration.
         """
+        # Only validate if the tables exist
+        if not frappe.db.table_exists("Payroll Indonesia Settings"):
+            logger.warning("Payroll Indonesia Settings table does not exist yet")
+            return
+
         # Get config limits
         config = get_live_config()
         bpjs_limits = config.get("bpjs", {}).get("limits", {})
@@ -211,12 +221,16 @@ class PayrollIndonesiaSettings(Document):
 
         # Validate BPJS components existence using central validation
         if hasattr(self, "company") and self.company:
-            try:
-                validate_bpjs_components(self.company)
-            except Exception as e:
-                logger.warning(f"BPJS component validation warning: {str(e)}")
-                # Show as warning, not error
-                frappe.msgprint(str(e), indicator="orange")
+            # Only check if Salary Component table exists
+            if frappe.db.table_exists("Salary Component"):
+                try:
+                    validate_bpjs_components(self.company)
+                except Exception as e:
+                    logger.warning(f"BPJS component validation warning: {str(e)}")
+                    # Show as warning, not error
+                    frappe.msgprint(str(e), indicator="orange")
+            else:
+                logger.warning("Salary Component table does not exist yet")
 
     @safe_execute(log_exception=True)
     def _validate_json_fields(self) -> None:
@@ -267,6 +281,11 @@ class PayrollIndonesiaSettings(Document):
 
         Internal helper for sync_to_related_doctypes method.
         """
+        # First check if DocType and table exist
+        if not frappe.db.table_exists("BPJS Settings"):
+            logger.info("BPJS Settings table does not exist yet, skipping sync")
+            return
+
         if frappe.db.exists("DocType", "BPJS Settings") and frappe.db.exists(
             "BPJS Settings", "BPJS Settings"
         ):
@@ -311,6 +330,11 @@ class PayrollIndonesiaSettings(Document):
 
         Internal helper for sync_to_related_doctypes method.
         """
+        # First check if DocType and table exist
+        if not frappe.db.table_exists("PPh 21 Settings"):
+            logger.info("PPh 21 Settings table does not exist yet, skipping sync")
+            return
+
         if frappe.db.exists("DocType", "PPh 21 Settings") and frappe.db.exists(
             "PPh 21 Settings", "PPh 21 Settings"
         ):
@@ -457,15 +481,23 @@ class PayrollIndonesiaSettings(Document):
     def _populate_default_values(self) -> None:
         """
         Populate default values from configuration if fields are empty.
-
+        
+        Checks if tables exist before performing any database operations.
         Loads defaults for tax settings, employee types, and account mappings.
         """
+        # First check if the main table exists
+        if not frappe.db.table_exists("Payroll Indonesia Settings"):
+            logger.warning("Payroll Indonesia Settings table does not exist yet, skipping defaults population")
+            return
+            
         # Get configuration
         config = get_live_config()
         defaults_loaded = False
 
-        # Check and load PTKP values if empty
-        if hasattr(self, "ptkp_table") and (not self.ptkp_table or len(self.ptkp_table) == 0):
+        # Check and load PTKP values if empty and if child table exists
+        ptkp_child_table = "Payroll Indonesia PTKP"
+        if (hasattr(self, "ptkp_table") and (not self.ptkp_table or len(self.ptkp_table) == 0) 
+                and frappe.db.table_exists(ptkp_child_table)):
             ptkp_values = config.get("ptkp", {})
             if ptkp_values:
                 # Clear existing rows if any
@@ -479,11 +511,13 @@ class PayrollIndonesiaSettings(Document):
 
                 defaults_loaded = True
                 logger.info("Populated default PTKP values")
+        elif not frappe.db.table_exists(ptkp_child_table):
+            logger.warning(f"{ptkp_child_table} table does not exist yet, skipping PTKP population")
 
-        # Check and load tax brackets if empty
-        if hasattr(self, "tax_brackets_table") and (
-            not self.tax_brackets_table or len(self.tax_brackets_table) == 0
-        ):
+        # Check and load tax brackets if empty and if child table exists
+        tax_bracket_child_table = "Payroll Indonesia Tax Bracket"
+        if (hasattr(self, "tax_brackets_table") and (not self.tax_brackets_table or len(self.tax_brackets_table) == 0)
+                and frappe.db.table_exists(tax_bracket_child_table)):
             tax_brackets = config.get("tax_brackets", [])
             if tax_brackets:
                 # Clear existing rows if any
@@ -498,11 +532,13 @@ class PayrollIndonesiaSettings(Document):
 
                 defaults_loaded = True
                 logger.info("Populated default tax brackets")
+        elif not frappe.db.table_exists(tax_bracket_child_table):
+            logger.warning(f"{tax_bracket_child_table} table does not exist yet, skipping tax brackets population")
 
-        # Check and load employee types if empty
-        if hasattr(self, "tipe_karyawan") and (
-            not self.tipe_karyawan or len(self.tipe_karyawan) == 0
-        ):
+        # Check and load employee types if empty and if child table exists
+        employee_type_child_table = "Payroll Indonesia Employee Type"
+        if (hasattr(self, "tipe_karyawan") and (not self.tipe_karyawan or len(self.tipe_karyawan) == 0)
+                and frappe.db.table_exists(employee_type_child_table)):
             tipe_karyawan = config.get("tipe_karyawan", [])
             if tipe_karyawan:
                 # Clear existing rows if any
@@ -515,11 +551,20 @@ class PayrollIndonesiaSettings(Document):
 
                 defaults_loaded = True
                 logger.info("Populated default employee types")
+        elif not frappe.db.table_exists(employee_type_child_table):
+            logger.warning(f"{employee_type_child_table} table does not exist yet, skipping employee types population")
 
         # If defaults were loaded, update the database
         if defaults_loaded:
-            self.db_update()
-            frappe.msgprint(_("Default values loaded from configuration"), indicator="green")
+            try:
+                self.db_update()
+                logger.info("Updated database with default values")
+                frappe.msgprint(_("Default values loaded from configuration"), indicator="green")
+            except Exception as e:
+                logger.error(f"Error updating database with defaults: {str(e)}")
+                frappe.log_error(
+                    f"Error updating database with defaults: {str(e)}", "Settings Error"
+                )
 
     # Public utility methods
 
