@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-07-02 16:31:25 by dannyaudian
+# Last modified: 2025-07-02 16:44:36 by dannyaudian
 
 """
 Payroll Indonesia API endpoints.
