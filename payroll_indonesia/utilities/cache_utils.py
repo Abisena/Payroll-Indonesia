@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-05-11 07:18:15 by dannyaudian
+# Last modified: 2025-07-02 17:18:47 by dannyaudian
 
 import frappe
 from frappe.utils import now_datetime, add_to_date
 import hashlib
 import json
 import functools
-from typing import Any, Optional, Dict
+from typing import Any, List, Optional, Dict, Union
 
 
 # Main cache implementation as a class
@@ -64,7 +64,7 @@ class CacheManager:
         if (now - entry.get("timestamp")).total_seconds() > entry.get(
             "ttl", cls.DEFAULT_TTL["default"]
         ):
-            del cls._storage[cache_key]
+            del cls._storage[key]
             return None
 
         # Log hit if debug mode is on
@@ -349,6 +349,68 @@ def clear_cache(prefix=None):
         prefix (str, optional): Key prefix to clear. If None, clear all caches.
     """
     return CacheManager.clear(prefix)
+
+
+def clear_pattern(pattern: str) -> Union[int, None]:
+    """
+    Delete Redis keys based on a wildcard pattern
+    
+    This function searches for Redis keys matching the provided pattern and deletes them.
+    It uses the scan_iter command to find matching keys, which is safe for production
+    environments as it doesn't block the Redis server.
+    
+    Args:
+        pattern (str): Redis wildcard pattern to match keys (e.g., "user:*:profile")
+                      See Redis documentation for pattern syntax
+    
+    Returns:
+        Union[int, None]: Number of keys deleted or None if no keys were found/deleted
+    
+    Examples:
+        >>> clear_pattern("user:*:profile")  # Deletes all user profile keys
+        >>> clear_pattern("cache:payroll:*")  # Deletes all payroll cache keys
+    """
+    if not pattern:
+        return None
+    
+    try:
+        # Get Redis connection from Frappe
+        redis_connection = frappe.cache().redis
+        
+        if not redis_connection:
+            # If Redis is not available, try to clear from local CacheManager
+            return clear_cache(pattern)
+        
+        # Use scan_iter to find matching keys safely (non-blocking)
+        keys_to_delete: List[str] = []
+        for key in redis_connection.scan_iter(pattern):
+            if isinstance(key, bytes):
+                key = key.decode('utf-8')
+            keys_to_delete.append(key)
+        
+        # If keys found, delete them
+        deleted_count = 0
+        if keys_to_delete:
+            # Delete in batches of 1000 to avoid blocking Redis
+            batch_size = 1000
+            for i in range(0, len(keys_to_delete), batch_size):
+                batch = keys_to_delete[i:i+batch_size]
+                deleted_count += redis_connection.delete(*batch)
+        
+        # Also try to clear from CacheManager for completeness
+        # This ensures both Redis and local cache are cleared
+        try:
+            clear_cache(pattern)
+        except Exception:
+            # Ignore errors from local cache clearing
+            pass
+            
+        return deleted_count if deleted_count > 0 else None
+        
+    except Exception as e:
+        # Log the error but don't raise it
+        frappe.logger().error(f"Error clearing Redis pattern '{pattern}': {str(e)}")
+        return None
 
 
 def clear_all_caches():
