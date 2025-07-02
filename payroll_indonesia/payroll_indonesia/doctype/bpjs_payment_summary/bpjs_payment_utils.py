@@ -1,392 +1,458 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-17 06:52:53 by dannyaudian
+# Last modified: 2025-07-02 15:54:21 by dannyaudian
 
-import frappe
+"""
+Utility functions for BPJS Payment Summary.
 
-# from frappe import _
-from frappe.utils import flt, get_last_day, cint
+This module provides pure, unit-testable helpers for processing BPJS data
+and calculations, with minimal dependencies on Frappe framework.
+"""
 
-# Import get_bpjs_accounts from bpjs_account_mapping
-from payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping import (
-    get_bpjs_accounts,
+import logging
+from dataclasses import dataclass
+from datetime import date, datetime
+from decimal import Decimal
+from typing import (
+    Any, Callable, Dict, List, Literal, Optional, Protocol, Tuple, TypedDict, Union, cast
 )
 
-
-def debug_log(message):
-    frappe.logger().debug(message)
+logger = logging.getLogger(__name__)
 
 
-@frappe.whitelist()
-def fetch_from_salary_slip(summary):
+# Type definitions
+class DocLike(Protocol):
+    """Protocol for document-like objects with attribute access."""
+    
+    def __getattr__(self, name: str) -> Any:
+        ...
+
+
+class DbLike(Protocol):
+    """Protocol for database-like objects with table_exists and sql methods."""
+    
+    def table_exists(self, table_name: str) -> bool:
+        ...
+    
+    def sql(self, query: str, *args: Any, **kwargs: Any) -> Any:
+        ...
+
+
+# Data structures for payment processing
+@dataclass
+class PayableLine:
     """
-    Fetches BPJS data from Salary Slips and updates the summary document
+    Represents a payable line item for BPJS payment.
+    
+    Attributes:
+        component_type: Type of BPJS component (Kesehatan, JHT, etc.)
+        account: GL account for the payable
+        amount: Payment amount
+        description: Line item description
+        reference: Optional reference number
+    """
+    component_type: str
+    account: str
+    amount: Decimal
+    description: str
+    reference: Optional[str] = None
 
+
+@dataclass
+class ExpenseLine:
+    """
+    Represents an expense line item for employer BPJS contributions.
+    
+    Attributes:
+        expense_type: Type of expense (employer or employee contribution)
+        account: GL account for the expense
+        amount: Expense amount
+        cost_center: Cost center to apply the expense to
+        description: Line item description
+    """
+    expense_type: Literal["employer", "employee"]
+    account: str
+    amount: Decimal
+    cost_center: str
+    description: str
+
+
+# Pure utility functions
+def safe_decimal(value: Any) -> Decimal:
+    """
+    Safely convert a value to Decimal.
+    
     Args:
-        summary: BPJS Payment Summary document or name
-
+        value: Value to convert
+        
     Returns:
-        dict: Updated totals
+        Decimal: Converted value or 0 if conversion fails
     """
-    if isinstance(summary, str):
-        summary = frappe.get_doc("BPJS Payment Summary", summary)
-
     try:
-        # Clear existing child table entries
-        summary.set("summary_details", [])
-
-        # Define date range based on period in summary
-        start_date, end_date = get_period_dates(summary.month, summary.year)
-
-        # Get all submitted salary slips in the period for this company
-        salary_slips = frappe.get_all(
-            "Salary Slip",
-            filters={
-                "docstatus": 1,
-                "company": summary.company,
-                "start_date": [">=", start_date],
-                "end_date": ["<=", end_date],
-            },
-            fields=["name", "employee", "employee_name"],
-        )
-
-        if not salary_slips:
-            frappe.msgprint(("No submitted salary slips found for the selected period"))
-            return {"total_employee": 0, "total_employer": 0, "grand_total": 0}
-
-        # Aggregate totals
-        total_employee = 0
-        total_employer = 0
-
-        # Process each salary slip
-        for slip in salary_slips:
-            # Get BPJS components from salary slip
-            employee_share, employer_share = extract_bpjs_components(slip.name)
-
-            # Skip if no BPJS components found
-            if not employee_share and not employer_share:
-                continue
-
-            # Add row to child table
-            summary.append(
-                "summary_details",
-                {
-                    "employee": slip.employee,
-                    "employee_name": slip.employee_name,
-                    "salary_slip": slip.name,
-                    "employee_share": employee_share,
-                    "employer_share": employer_share,
-                    "total": flt(employee_share) + flt(employer_share),
-                },
-            )
-
-            # Update totals
-            total_employee += flt(employee_share)
-            total_employer += flt(employer_share)
-
-        # Update summary document totals
-        summary.total_employee = total_employee
-        summary.total_employer = total_employer
-        summary.grand_total = total_employee + total_employer
-
-        # Save the document if not a new document
-        if not summary.is_new():
-            summary.save()
-            frappe.msgprint(
-                ("Successfully fetched BPJS data from {0} salary slips").format(
-                    len(summary.summary_details)
-                )
-            )
-
-        return {
-            "total_employee": total_employee,
-            "total_employer": total_employer,
-            "grand_total": total_employee + total_employer,
-        }
-
-    except Exception as e:
-        frappe.log_error(
-            f"Error fetching BPJS data from salary slips: {str(e)}\n"
-            f"Traceback: {frappe.get_traceback()}",
-            "BPJS Payment Summary Error",
-        )
-        frappe.throw(("Error fetching BPJS data from salary slips: {0}").format(str(e)))
+        if isinstance(value, Decimal):
+            return value
+        return Decimal(str(value or 0))
+    except (ValueError, TypeError):
+        return Decimal('0')
 
 
-def extract_bpjs_components(salary_slip):
+def format_reference(
+    component_type: str, month: int, year: int, suffix: Optional[str] = None
+) -> str:
     """
-    Extracts BPJS component amounts from a salary slip
-
+    Format a standardized reference number.
+    
     Args:
-        salary_slip: Name of the salary slip
-
-    Returns:
-        tuple: (employee_share, employer_share)
-    """
-    doc = frappe.get_doc("Salary Slip", salary_slip)
-
-    employee_share = 0
-    employer_share = 0
-
-    # Process deductions (employee contributions)
-    if doc.deductions:
-        for deduction in doc.deductions:
-            if "BPJS" in deduction.salary_component and "Employee" in deduction.salary_component:
-                employee_share += flt(deduction.amount)
-
-    # Process earnings (employer contributions)
-    if doc.earnings:
-        for earning in doc.earnings:
-            if "BPJS" in earning.salary_component and "Employer" in earning.salary_component:
-                employer_share += flt(earning.amount)
-
-    return employee_share, employer_share
-
-
-def get_period_dates(month, year):
-    """
-    Get start and end dates for a given month and year
-
-    Args:
-        month: Month (1-12)
+        component_type: BPJS component type
+        month: Month number (1-12)
         year: Year
-
+        suffix: Optional suffix
+        
     Returns:
-        tuple: (start_date, end_date)
+        str: Formatted reference number
     """
-    month = cint(month)
-    year = cint(year)
-
-    if month < 1 or month > 12:
-        frappe.throw(("Month must be between 1 and 12"))
-
-    start_date = f"{year}-{month:02d}-01"
-    end_date = get_last_day(start_date)
-
-    return start_date, end_date
+    ref = f"BPJS-{component_type}-{month:02d}-{year}"
+    if suffix:
+        ref = f"{ref}-{suffix}"
+    return ref
 
 
-@frappe.whitelist()
-def create_payment_entry(summary):
+def get_month_name(month: int) -> str:
     """
-    Creates a Payment Entry for the BPJS Payment Summary
-
-    Args:
-        summary: BPJS Payment Summary document or name
-
-    Returns:
-        str: Name of the created Payment Entry
-    """
-    if isinstance(summary, str):
-        summary = frappe.get_doc("BPJS Payment Summary", summary)
-
-    try:
-        # Check if payment entry already exists
-        if summary.payment_entry:
-            frappe.msgprint(("Payment Entry {0} already exists").format(summary.payment_entry))
-            return summary.payment_entry
-
-        # Check if summary has been submitted
-        if summary.docstatus != 1:
-            frappe.throw(("BPJS Payment Summary must be submitted before creating a Payment Entry"))
-
-        # Check if summary has details
-        if not summary.summary_details:
-            frappe.throw(
-                ("No BPJS payment details found. Please fetch data from salary slips first.")
-            )
-
-        # Get BPJS accounts for the company
-        try:
-            accounts = get_bpjs_accounts(summary.company)
-        except frappe.ValidationError as e:
-            frappe.throw(str(e))
-
-        # Get company default bank account
-        default_bank_account = frappe.get_cached_value(
-            "Company", summary.company, "default_bank_account"
-        )
-
-        if not default_bank_account:
-            frappe.throw(("Default Bank Account not set for Company {0}").format(summary.company))
-
-        # Create Payment Entry
-        pe = frappe.new_doc("Payment Entry")
-        pe.payment_type = "Pay"
-        pe.mode_of_payment = "Bank"
-        pe.paid_from = default_bank_account
-        pe.company = summary.company
-        pe.posting_date = summary.posting_date
-        pe.party_type = "Supplier"
-
-        # Get BPJS supplier
-        bpjs_supplier = get_bpjs_supplier(summary.company)
-        pe.party = bpjs_supplier
-
-        # Set payment amounts
-        pe.paid_amount = summary.grand_total
-        pe.source_exchange_rate = 1.0
-        pe.target_exchange_rate = 1.0
-        pe.received_amount = summary.grand_total
-
-        # Set reference information
-        pe.reference_no = summary.name
-        pe.reference_date = summary.posting_date
-
-        # Add description
-        month_name = get_month_name(summary.month)
-        pe.remarks = f"BPJS Payment for {month_name} {summary.year}"
-
-        # Add GL entries
-        # Add employee expense
-        if summary.total_employee > 0:
-            pe.append(
-                "deductions",
-                {
-                    "account": accounts["employee_expense"],
-                    "cost_center": get_default_cost_center(summary.company),
-                    "amount": summary.total_employee,
-                },
-            )
-
-        # Add employer expense
-        if summary.total_employer > 0:
-            pe.append(
-                "deductions",
-                {
-                    "account": accounts["employer_expense"],
-                    "cost_center": get_default_cost_center(summary.company),
-                    "amount": summary.total_employer,
-                },
-            )
-
-        # Add payable account as target
-        pe.paid_to = accounts["payable"]
-
-        # Add reference to BPJS Payment Summary
-        pe.append(
-            "references",
-            {
-                "reference_doctype": "BPJS Payment Summary",
-                "reference_name": summary.name,
-                "total_amount": summary.grand_total,
-                "allocated_amount": summary.grand_total,
-            },
-        )
-
-        # Save and submit payment entry
-        pe.insert()
-        pe.submit()
-
-        # Update BPJS Payment Summary with payment entry reference
-        summary.db_set("payment_entry", pe.name)
-        summary.db_set("status", "Paid")
-
-        frappe.msgprint(("Payment Entry {0} created successfully").format(pe.name))
-        return pe.name
-
-    except Exception as e:
-        frappe.log_error(
-            f"Error creating Payment Entry for BPJS Payment Summary {summary.name}: {str(e)}\n"
-            f"Traceback: {frappe.get_traceback()}",
-            "BPJS Payment Entry Error",
-        )
-        frappe.throw(("Error creating Payment Entry: {0}").format(str(e)))
-
-
-def get_bpjs_supplier(company):
-    """
-    Get or create BPJS supplier
-
-    Args:
-        company: Company name
-
-    Returns:
-        str: Supplier name
-    """
-    supplier_name = "BPJS"
-
-    if not frappe.db.exists("Supplier", supplier_name):
-        # Create BPJS supplier if it doesn't exist
-        supplier = frappe.new_doc("Supplier")
-        supplier.supplier_name = supplier_name
-        supplier.supplier_group = "Services"
-        supplier.supplier_type = "Company"
-        supplier.country = "Indonesia"
-        supplier.insert(ignore_permissions=True)
-
-    return supplier_name
-
-
-def get_default_cost_center(company):
-    """
-    Get default cost center for a company
-
-    Args:
-        company: Company name
-
-    Returns:
-        str: Cost center name
-    """
-    return frappe.get_cached_value("Company", company, "cost_center")
-
-
-def get_month_name(month):
-    """
-    Get Indonesian month name from month number
-
+    Get Indonesian month name from month number.
+    
     Args:
         month: Month number (1-12)
-
+        
     Returns:
         str: Month name in Indonesian
     """
     month_names = [
-        "Januari",
-        "Februari",
-        "Maret",
-        "April",
-        "Mei",
-        "Juni",
-        "Juli",
-        "Agustus",
-        "September",
-        "Oktober",
-        "November",
-        "Desember",
+        "Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+        "Agustus", "September", "Oktober", "November", "Desember"
     ]
-
-    month = cint(month)
+    
     if month < 1 or month > 12:
         return str(month)
-
+        
     return month_names[month - 1]
 
 
-def get_formatted_currency(value, currency=None):
+def calculate_period_dates(month: int, year: int) -> Tuple[date, date]:
     """
-    Format a number as currency with thousands separator
-
+    Calculate start and end dates for a given month and year.
+    
     Args:
-        value: Numeric value to format
-        currency: Currency symbol (optional)
-
+        month: Month (1-12)
+        year: Year
+        
     Returns:
-        str: Formatted currency string
+        tuple: (start_date, end_date)
+        
+    Raises:
+        ValueError: If month is invalid
     """
-    from frappe.utils import flt, fmt_money
+    import calendar
+    from datetime import date
+    
+    if month < 1 or month > 12:
+        raise ValueError("Month must be between 1 and 12")
+        
+    start_date = date(year, month, 1)
+    
+    # Get last day of month
+    _, last_day = calendar.monthrange(year, month)
+    end_date = date(year, month, last_day)
+    
+    return start_date, end_date
 
-    # Get default currency if not provided
-    if not currency:
-        currency = frappe.defaults.get_global_default("currency")
 
-    # Format as money with currency symbol
-    return fmt_money(flt(value), currency=currency)
+def safe_table_exists(db: DbLike, table_name: str) -> bool:
+    """
+    Safely check if a table exists in the database.
+    
+    Args:
+        db: Database-like object with table_exists method
+        table_name: Table name to check
+        
+    Returns:
+        bool: True if table exists, False otherwise
+    """
+    try:
+        return db.table_exists(table_name)
+    except Exception:
+        return False
 
 
-def get_formatted_currency_idr(value):
-    """Format numeric value as Indonesian Rupiah currency string."""
-    from frappe.utils import flt, fmt_money
+def extract_bpjs_data_from_components(
+    employee: str,
+    employee_name: str,
+    salary_slip: str,
+    deductions: List[Dict[str, Any]],
+    earnings: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """
+    Extract BPJS data from salary slip components.
+    
+    Args:
+        employee: Employee ID
+        employee_name: Employee name
+        salary_slip: Salary slip name
+        deductions: List of deduction components
+        earnings: List of earning components
+        
+    Returns:
+        dict: Extracted BPJS data
+    """
+    bpjs_data = {
+        "employee": employee,
+        "employee_name": employee_name,
+        "salary_slip": salary_slip,
+        "jht_employee": Decimal('0'),
+        "jp_employee": Decimal('0'),
+        "kesehatan_employee": Decimal('0'),
+        "jht_employer": Decimal('0'),
+        "jp_employer": Decimal('0'),
+        "kesehatan_employer": Decimal('0'),
+        "jkk": Decimal('0'),
+        "jkm": Decimal('0'),
+        "last_updated": datetime.now(),
+        "is_synced": 1
+    }
+    
+    # Process deductions (employee contributions)
+    for deduction in deductions:
+        component = deduction['salary_component'].lower()
+        amount = safe_decimal(deduction.get('amount', 0))
+        
+        if "kesehatan" in component and "employee" in component:
+            bpjs_data["kesehatan_employee"] += amount
+        elif "jht" in component and "employee" in component:
+            bpjs_data["jht_employee"] += amount
+        elif "jp" in component and "employee" in component:
+            bpjs_data["jp_employee"] += amount
+        # Handle cases without "employee" in name
+        elif "kesehatan" in component and "employer" not in component:
+            bpjs_data["kesehatan_employee"] += amount
+        elif "jht" in component and "employer" not in component:
+            bpjs_data["jht_employee"] += amount
+        elif "jp" in component and "employer" not in component:
+            bpjs_data["jp_employee"] += amount
+            
+    # Process earnings (employer contributions)
+    for earning in earnings:
+        component = earning['salary_component'].lower()
+        amount = safe_decimal(earning.get('amount', 0))
+        
+        if "kesehatan" in component and "employer" in component:
+            bpjs_data["kesehatan_employer"] += amount
+        elif "jht" in component and "employer" in component:
+            bpjs_data["jht_employer"] += amount
+        elif "jp" in component and "employer" in component:
+            bpjs_data["jp_employer"] += amount
+        elif "jkk" in component:
+            bpjs_data["jkk"] += amount
+        elif "jkm" in component:
+            bpjs_data["jkm"] += amount
+            
+    # Calculate total amount
+    bpjs_data["amount"] = (
+        bpjs_data["kesehatan_employee"] +
+        bpjs_data["jht_employee"] +
+        bpjs_data["jp_employee"] +
+        bpjs_data["kesehatan_employer"] +
+        bpjs_data["jht_employer"] +
+        bpjs_data["jp_employer"] +
+        bpjs_data["jkk"] +
+        bpjs_data["jkm"]
+    )
+    
+    return bpjs_data
 
-    return fmt_money(flt(value), currency="IDR")
+
+def calculate_total_amount(detail_doc: DocLike) -> Decimal:
+    """
+    Calculate the total amount from all BPJS components.
+    
+    Args:
+        detail_doc: BPJS Payment Summary Detail document
+        
+    Returns:
+        Decimal: Total amount
+    """
+    total = (
+        safe_decimal(getattr(detail_doc, "kesehatan_employee", 0)) +
+        safe_decimal(getattr(detail_doc, "jht_employee", 0)) +
+        safe_decimal(getattr(detail_doc, "jp_employee", 0)) +
+        safe_decimal(getattr(detail_doc, "kesehatan_employer", 0)) +
+        safe_decimal(getattr(detail_doc, "jht_employer", 0)) +
+        safe_decimal(getattr(detail_doc, "jp_employer", 0)) +
+        safe_decimal(getattr(detail_doc, "jkk", 0)) +
+        safe_decimal(getattr(detail_doc, "jkm", 0))
+    )
+    
+    return total if total > 0 else Decimal('0')
+
+
+def collect_payable_lines(summary: DocLike) -> List[PayableLine]:
+    """
+    Collect payable lines from a BPJS Payment Summary.
+    
+    Args:
+        summary: BPJS Payment Summary document
+        
+    Returns:
+        List[PayableLine]: List of payable lines
+    """
+    payable_lines: List[PayableLine] = []
+    
+    # Check if summary has account_details
+    if not hasattr(summary, "account_details") or not summary.account_details:
+        return payable_lines
+        
+    # Group by account and component type
+    for account_detail in summary.account_details:
+        if not hasattr(account_detail, "amount") or not account_detail.amount:
+            continue
+            
+        component_type = getattr(account_detail, "account_type", "BPJS")
+        account = getattr(account_detail, "account", None)
+        amount = safe_decimal(getattr(account_detail, "amount", 0))
+        description = getattr(account_detail, "description", "")
+        reference = getattr(account_detail, "reference_number", None)
+        
+        if account and amount > Decimal('0'):
+            payable_lines.append(
+                PayableLine(
+                    component_type=component_type,
+                    account=account,
+                    amount=amount,
+                    description=description,
+                    reference=reference
+                )
+            )
+            
+    return payable_lines
+
+
+def get_payment_accounts(
+    get_settings: Callable[[], Dict[str, Any]],
+    company: str,
+    component_type: Optional[str] = None
+) -> Tuple[str, str]:
+    """
+    Get payment accounts for BPJS payments.
+    
+    Args:
+        get_settings: Function to get BPJS settings
+        company: Company name
+        component_type: Optional component type for specific accounts
+        
+    Returns:
+        Tuple[str, str]: (payment_account, expense_account)
+    """
+    settings = get_settings()
+    
+    # Default accounts
+    default_payment = f"BPJS Payable - {company}"
+    default_expense = f"BPJS Expense - {company}"
+    
+    # Get specific accounts based on component type if provided
+    if component_type:
+        component_type_lower = component_type.lower()
+        payment_field = f"{component_type_lower}_account"
+        expense_field = f"{component_type_lower}_expense_account"
+        
+        payment_account = settings.get(payment_field, default_payment)
+        expense_account = settings.get(expense_field, default_expense)
+    else:
+        # Use general accounts
+        payment_account = settings.get("payment_account", default_payment)
+        expense_account = settings.get("expense_account", default_expense)
+        
+    return payment_account, expense_account
+
+
+def compute_employer_expense(
+    summary: DocLike, cost_center: str, account_getter: Callable[[str], Tuple[str, str]]
+) -> List[ExpenseLine]:
+    """
+    Compute employer expense lines from a BPJS Payment Summary.
+    
+    Args:
+        summary: BPJS Payment Summary document
+        cost_center: Default cost center
+        account_getter: Function to get accounts for a component type
+        
+    Returns:
+        List[ExpenseLine]: List of expense lines
+    """
+    expense_lines: List[ExpenseLine] = []
+    
+    # Calculate employee and employer totals
+    employee_total = Decimal('0')
+    employer_total = Decimal('0')
+    
+    # Check if summary has employee_details
+    if hasattr(summary, "employee_details") and summary.employee_details:
+        for detail in summary.employee_details:
+            # Sum employee contributions
+            employee_total += (
+                safe_decimal(getattr(detail, "kesehatan_employee", 0)) +
+                safe_decimal(getattr(detail, "jht_employee", 0)) +
+                safe_decimal(getattr(detail, "jp_employee", 0))
+            )
+            
+            # Sum employer contributions
+            employer_total += (
+                safe_decimal(getattr(detail, "kesehatan_employer", 0)) +
+                safe_decimal(getattr(detail, "jht_employer", 0)) +
+                safe_decimal(getattr(detail, "jp_employer", 0)) +
+                safe_decimal(getattr(detail, "jkk", 0)) +
+                safe_decimal(getattr(detail, "jkm", 0))
+            )
+    
+    # Get month and year for description
+    month = int(getattr(summary, "month", 1))
+    year = int(getattr(summary, "year", datetime.now().year))
+    month_name = get_month_name(month)
+    
+    # Add employee contributions line if amount > 0
+    if employee_total > Decimal('0'):
+        _, employee_expense_account = account_getter("employee")
+        expense_lines.append(
+            ExpenseLine(
+                expense_type="employee",
+                account=employee_expense_account,
+                amount=employee_total,
+                cost_center=cost_center,
+                description=f"Employee BPJS contributions for {month_name} {year}"
+            )
+        )
+    
+    # Add employer contributions line if amount > 0
+    if employer_total > Decimal('0'):
+        _, employer_expense_account = account_getter("employer")
+        expense_lines.append(
+            ExpenseLine(
+                expense_type="employer",
+                account=employer_expense_account,
+                amount=employer_total,
+                cost_center=cost_center,
+                description=f"Employer BPJS contributions for {month_name} {year}"
+            )
+        )
+    
+    return expense_lines
+
+
+def debug_log(message: str, subject: str = "BPJS Payment Utils") -> None:
+    """
+    Write a debug log entry.
+    
+    Args:
+        message: Message to log
+        subject: Log subject
+    """
+    logger.debug(f"{subject}: {message}")

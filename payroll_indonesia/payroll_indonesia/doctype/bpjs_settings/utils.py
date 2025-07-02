@@ -1,131 +1,350 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-05-11 13:01:12 by dannyaudian
+# Last modified: 2025-07-02 15:34:31 by dannyaudian
 
 """
-This module is a compatibility layer that forwards utility functions
-from the central utils module to maintain backward compatibility.
+Payroll Indonesia API endpoints.
+
+Provides a thin API layer for accessing payroll functionality:
+- Employee data
+- Salary slip information
+- Tax calculation
+- BPJS calculation
 """
 
-from payroll_indonesia.payroll_indonesia.utils import (
-    get_settings,
-    get_default_config,
-    debug_log,
-    find_parent_account,
-    create_account,
-    create_parent_liability_account,
-    create_parent_expense_account,
-    retry_bpjs_mapping,
+# Standard library imports
+import json
+import logging
+from typing import Dict, Any
+
+# Frappe imports
+import frappe
+from frappe import _
+from frappe.utils import flt
+
+# Payroll Indonesia imports
+from payroll_indonesia.config.config import get_live_config
+from payroll_indonesia.override.salary_slip import (
+    bpjs_calculator as bpjs_calc,
+    tax_calculator as tax_calc,
+    ter_calculator as ter_calc,
 )
 
-__all__ = [
-    "validate_settings",
-    "setup_accounts",
-    "get_settings",
-    "get_default_config",
-    "find_parent_account",
-    "create_account",
-    "create_parent_liability_account",
-    "create_parent_expense_account",
-    "retry_bpjs_mapping",
-    "debug_log",
-]
+logger = logging.getLogger("payroll_api")
 
 
-# Validation functions for hooks.py - keep these as they're specific to BPJS Settings
-def validate_settings(doc, method=None):
-    """Wrapper for BPJSSettings.validate method with protection against recursion"""
-    # Skip if already being validated
-    if getattr(doc, "_validated", False):
-        return
-
-    # Mark as being validated to prevent recursion
-    doc._validated = True
-
-    try:
-        # Call the instance methods
-        doc.validate_data_types()
-        doc.validate_percentages()
-        doc.validate_max_salary()
-        doc.validate_account_types()
-
-        # Sync with Payroll Indonesia Settings
-        sync_with_payroll_settings(doc)
-    finally:
-        # Always clean up flag
-        doc._validated = False
-
-
-def setup_accounts(doc, method=None):
-    """Wrapper for BPJSSettings.setup_accounts method with protection against recursion"""
-    # Skip if already being processed
-    if getattr(doc, "_setup_running", False):
-        return
-
-    # Mark as being processed to prevent recursion
-    doc._setup_running = True
-
-    try:
-        # Call the instance method
-        doc.setup_accounts()
-    finally:
-        # Always clean up flag
-        doc._setup_running = False
-
-
-def sync_with_payroll_settings(bpjs_doc):
+@frappe.whitelist(allow_guest=False)
+def get_employee(name: str = None, filters: str = None) -> Dict[str, Any]:
     """
-    Sync BPJS Settings with Payroll Indonesia Settings
+    API to get employee data.
 
     Args:
-        bpjs_doc: BPJS Settings document
+        name: Employee ID
+        filters: JSON string of filters
+
+    Returns:
+        dict: Employee data or list
     """
     try:
-        # Check if Payroll Indonesia Settings exists
-        if not bpjs_doc:
-            return
+        if not frappe.has_permission("Employee", "read"):
+            frappe.throw(_("Not permitted to read Employee data"), frappe.PermissionError)
 
-        if not hasattr(bpjs_doc, "kesehatan_employee_percent"):
-            return
+        # Get specific employee
+        if name:
+            doc = frappe.get_doc("Employee", name)
+            return {"status": "success", "data": doc}
 
-        # Get central settings
-        pi_settings = get_settings()
+        # Parse filters
+        filter_dict = json.loads(filters) if isinstance(filters, str) else {}
 
-        # Update Payroll Indonesia Settings with BPJS values
-        fields_to_update = [
-            "kesehatan_employee_percent",
-            "kesehatan_employer_percent",
-            "kesehatan_max_salary",
-            "jht_employee_percent",
-            "jht_employer_percent",
-            "jp_employee_percent",
-            "jp_employer_percent",
-            "jp_max_salary",
-            "jkk_percent",
-            "jkm_percent",
-        ]
-
-        needs_update = False
-        for field in fields_to_update:
-            if (
-                hasattr(pi_settings, field)
-                and hasattr(bpjs_doc, field)
-                and pi_settings.get(field) != bpjs_doc.get(field)
-            ):
-                pi_settings.set(field, bpjs_doc.get(field))
-                needs_update = True
-
-        if needs_update:
-            pi_settings.app_last_updated = "2025-05-11 13:01:12"
-            pi_settings.app_updated_by = "dannyaudian"
-            pi_settings.flags.ignore_validate = True
-            pi_settings.flags.ignore_permissions = True
-            pi_settings.save(ignore_permissions=True)
-            debug_log("Payroll Indonesia Settings updated with BPJS values", "BPJS Settings Sync")
-    except Exception as e:
-        debug_log(
-            f"Error syncing BPJS Settings to Payroll Indonesia Settings: {str(e)}",
-            "BPJS Settings Sync Error",
-            trace=True,
+        # Get filtered employees
+        employees = frappe.get_all(
+            "Employee",
+            filters=filter_dict,
+            fields=[
+                "name",
+                "employee_name",
+                "company",
+                "status",
+                "date_of_joining",
+                "department",
+                "designation",
+                "status_pajak",
+                "npwp",
+                "golongan",
+            ],
         )
+
+        return {"status": "success", "count": len(employees), "data": employees}
+    except Exception as e:
+        logger.error(f"Error getting employee data: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def calculate_bpjs(salary: float) -> Dict[str, Any]:
+    """
+    Calculate BPJS based on salary.
+
+    Args:
+        salary: Salary amount
+
+    Returns:
+        dict: BPJS calculation results
+    """
+    try:
+        salary = flt(salary)
+        if salary <= 0:
+            frappe.throw(_("Salary must be greater than zero"))
+
+        # Use bpjs_calculator to calculate components
+        mock_doc = frappe._dict({"gross_pay": salary})
+        result = bpjs_calc.calculate_components(mock_doc)
+
+        return {"status": "success", "data": result}
+    except Exception as e:
+        logger.error(f"Error calculating BPJS: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def calculate_tax(
+    salary: float, tax_status: str = "TK0", method: str = "progressive"
+) -> Dict[str, Any]:
+    """
+    Calculate PPh 21 tax based on salary.
+
+    Args:
+        salary: Salary amount
+        tax_status: Tax status code (TK0, K1, etc.)
+        method: Tax calculation method (progressive or ter)
+
+    Returns:
+        dict: Tax calculation results
+    """
+    try:
+        salary = flt(salary)
+        if salary <= 0:
+            frappe.throw(_("Salary must be greater than zero"))
+
+        # Create mock document
+        mock_doc = frappe._dict(
+            {
+                "gross_pay": salary,
+                "total_bpjs": 0,
+                "employee_doc": frappe._dict({"status_pajak": tax_status}),
+            }
+        )
+
+        # Calculate based on method
+        if method.lower() == "ter":
+            result = ter_calc.calculate_monthly_pph_with_ter(mock_doc)
+        else:
+            result = tax_calc.calculate_monthly_pph_progressive(mock_doc)
+
+        return {"status": "success", "data": result}
+    except Exception as e:
+        logger.error(f"Error calculating tax: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_tax_brackets() -> Dict[str, Any]:
+    """
+    Get tax brackets from configuration.
+
+    Returns:
+        dict: Tax brackets
+    """
+    try:
+        cfg = get_live_config()
+        brackets = tax_calc.get_tax_brackets(cfg)
+
+        return {"status": "success", "data": brackets}
+    except Exception as e:
+        logger.error(f"Error getting tax brackets: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_ter_rates() -> Dict[str, Any]:
+    """
+    Get TER rates from configuration.
+
+    Returns:
+        dict: TER rates by category
+    """
+    try:
+        cfg = get_live_config()
+
+        # Get TER rates
+        ter_rates = cfg.get("ter_rates", {})
+
+        return {"status": "success", "data": ter_rates}
+    except Exception as e:
+        logger.error(f"Error getting TER rates: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_salary_slip(name: str) -> Dict[str, Any]:
+    """
+    Get salary slip details.
+
+    Args:
+        name: Salary slip ID
+
+    Returns:
+        dict: Salary slip details
+    """
+    try:
+        if not frappe.has_permission("Salary Slip", "read"):
+            frappe.throw(_("Not permitted to read Salary Slip data"), frappe.PermissionError)
+
+        # Get salary slip
+        slip = frappe.get_doc("Salary Slip", name)
+
+        # Extract key information
+        result = {
+            "name": slip.name,
+            "employee": slip.employee,
+            "employee_name": slip.employee_name,
+            "start_date": slip.start_date,
+            "end_date": slip.end_date,
+            "gross_pay": slip.gross_pay,
+            "net_pay": slip.net_pay,
+            "total_deduction": slip.total_deduction,
+        }
+
+        # Add Indonesia-specific fields if they exist
+        for field in [
+            "total_bpjs",
+            "biaya_jabatan",
+            "netto",
+            "is_using_ter",
+            "ter_rate",
+            "ter_category",
+        ]:
+            if hasattr(slip, field):
+                result[field] = getattr(slip, field)
+
+        # Add components
+        if hasattr(slip, "earnings"):
+            result["earnings"] = [
+                {"component": e.salary_component, "amount": e.amount} for e in slip.earnings
+            ]
+
+        if hasattr(slip, "deductions"):
+            result["deductions"] = [
+                {"component": d.salary_component, "amount": d.amount} for d in slip.deductions
+            ]
+
+        return {"status": "success", "data": result}
+    except Exception as e:
+        logger.error(f"Error getting salary slip: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def recalculate_tax(slip_name: str, method: str = None) -> Dict[str, Any]:
+    """
+    Recalculate tax for a salary slip.
+
+    Args:
+        slip_name: Salary slip ID
+        method: Tax calculation method (progressive, ter, or december)
+
+    Returns:
+        dict: Recalculation results
+    """
+    try:
+        if not frappe.has_permission("Salary Slip", "write"):
+            frappe.throw(_("Not permitted to update Salary Slip data"), frappe.PermissionError)
+
+        # Get salary slip
+        slip = frappe.get_doc("Salary Slip", slip_name)
+
+        # Check document status
+        if slip.docstatus != 0:
+            frappe.throw(_("Cannot recalculate tax for submitted or cancelled slip"))
+
+        # Determine calculation method
+        if method == "ter":
+            slip.is_using_ter = 1
+            result = ter_calc.calculate_monthly_pph_with_ter(slip)
+        elif method == "december":
+            slip.is_december_override = 1
+            result = tax_calc.calculate_december_pph(slip)
+        else:
+            slip.is_using_ter = 0
+            slip.is_december_override = 0
+            result = tax_calc.calculate_monthly_pph_progressive(slip)
+
+        # Save changes
+        slip.save()
+
+        return {"status": "success", "message": _("Tax recalculated successfully"), "data": result}
+    except Exception as e:
+        logger.error(f"Error recalculating tax: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_bpjs_settings() -> Dict[str, Any]:
+    """
+    Get BPJS settings from configuration.
+
+    Returns:
+        dict: BPJS settings
+    """
+    try:
+        cfg = get_live_config()
+        bpjs_config = cfg.get("bpjs", {})
+
+        return {"status": "success", "data": bpjs_config}
+    except Exception as e:
+        logger.error(f"Error getting BPJS settings: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_bpjs_limits() -> Dict[str, Any]:
+    """
+    Get BPJS validation limits from configuration.
+
+    Returns validation rules for BPJS percentage fields and salary thresholds
+    that can be used for client-side validation.
+
+    Returns:
+        dict: BPJS validation limits
+    """
+    try:
+        cfg = get_live_config()
+
+        # Get validation rules from config
+        validation_rules = cfg.get("bpjs_settings", {}).get("validation_rules", {})
+
+        if not validation_rules:
+            # Create default limits if none found in config
+            validation_rules = {
+                "percentage_ranges": [
+                    {"field": "kesehatan_employee_percent", "min": 0, "max": 5},
+                    {"field": "kesehatan_employer_percent", "min": 0, "max": 10},
+                    {"field": "jht_employee_percent", "min": 0, "max": 5},
+                    {"field": "jht_employer_percent", "min": 0, "max": 10},
+                    {"field": "jp_employee_percent", "min": 0, "max": 5},
+                    {"field": "jp_employer_percent", "min": 0, "max": 5},
+                    {"field": "jkk_percent", "min": 0, "max": 5},
+                    {"field": "jkm_percent", "min": 0, "max": 5},
+                ],
+                "salary_thresholds": [
+                    {"field": "kesehatan_max_salary", "min": 0},
+                    {"field": "jp_max_salary", "min": 0},
+                ],
+            }
+
+        return {"status": "success", "data": validation_rules}
+    except Exception as e:
+        logger.error(f"Error getting BPJS limits: {str(e)}")
+        return {"status": "error", "message": str(e)}

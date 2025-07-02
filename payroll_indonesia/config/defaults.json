@@ -1,7 +1,7 @@
 {
     "app_info": {
         "version": "1.0.0",
-        "last_updated": "2025-05-24 05:43:22",
+        "last_updated": "2025-07-02 16:07:29",
         "updated_by": "dannyaudian"
     },
     "bpjs": {
@@ -14,7 +14,33 @@
         "jp_employer_percent": 2.0,
         "jp_max_salary": 9077600.0,
         "jkk_percent": 0.24,
-        "jkm_percent": 0.3
+        "jkm_percent": 0.3,
+        "gl_accounts": {
+            "payment_account": "BPJS Payable",
+            "expense_account": "BPJS Expense",
+            "kesehatan_account": "BPJS Kesehatan Payable",
+            "kesehatan_expense_account": "BPJS Kesehatan Employer Expense",
+            "jht_account": "BPJS JHT Payable",
+            "jht_expense_account": "BPJS JHT Employer Expense",
+            "jp_account": "BPJS JP Payable",
+            "jp_expense_account": "BPJS JP Employer Expense",
+            "jkk_account": "BPJS JKK Payable",
+            "jkk_expense_account": "BPJS JKK Employer Expense",
+            "jkm_account": "BPJS JKM Payable",
+            "jkm_expense_account": "BPJS JKM Employer Expense",
+            "employer_expense_parent": "BPJS Expenses",
+            "employee_expense_account": "Salary Payable"
+        },
+        "validation_limits": {
+            "kesehatan_min_salary": 1000000.0,
+            "kesehatan_max_salary": 12000000.0,
+            "jp_min_salary": 1000000.0,
+            "jp_max_salary": 9077600.0,
+            "calculation_precision": 2,
+            "rounding_method": "round",
+            "minimum_employee_age": 18,
+            "maximum_employee_age": 65
+        }
     },
     "tax": {
         "umr_default": 4900000.0,
@@ -23,7 +49,18 @@
         "npwp_mandatory": false,
         "tax_calculation_method": "TER",
         "use_ter": true,
-        "use_gross_up": false
+        "use_gross_up": false,
+        "limits": {
+            "minimum_taxable_income": 4500000.0,
+            "maximum_non_taxable_pkp": 54000000.0,
+            "minimum_ptkp": 54000000.0,
+            "maximum_tax_bracket": 5000000000.0,
+            "highest_tax_rate": 35.0,
+            "biaya_jabatan_min": 0.0,
+            "biaya_jabatan_max": 500000.0,
+            "biaya_jabatan_percent_max": 5.0,
+            "rounding_precision": 2
+        }
     },
     "ptkp": {
         "TK0": 54000000.0,
@@ -191,7 +228,14 @@
             {"income_from": 709000000, "income_to": 965000000, "rate": 32},
             {"income_from": 965000000, "income_to": 1419000000, "rate": 33},
             {"income_from": 1419000000, "income_to": 0, "rate": 34, "is_highest_bracket": 1}
-        ]
+        ],
+        "metadata": {
+            "effective_date": "2023-01-01",
+            "regulation_ref": "PMK-168/PMK.010/2023",
+            "description": "Tarif Efektif Rata-rata (TER) sesuai PMK-168/PMK.010/2023",
+            "default_category": "TER A",
+            "fallback_rate": 5.0
+        }
     },
     "defaults": {
         "currency": "IDR",

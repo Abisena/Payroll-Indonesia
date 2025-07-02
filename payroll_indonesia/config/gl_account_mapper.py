@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-17 06:59:21 by dannyaudian
+# Last modified: 2025-07-02 13:19:43 by dannyaudian
 
 import frappe
 import logging
 
-# Import utility function for config
-from payroll_indonesia.payroll_indonesia.utils import get_default_config, debug_log
+# FIXED: Use correct import path for get_default_config
+from payroll_indonesia.config.config import get_config as get_default_config
+from payroll_indonesia.payroll_indonesia.utils import debug_log
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -120,7 +121,6 @@ def map_gl_account(company: str, account_key: str, category: str) -> str:
         debug_log(
             f"Error mapping GL account for {account_key} in {category}: {str(e)}",
             "GL Account Mapping Error",
-            trace=True,
         )
         # Return fallback format using account_key as name
         return f"{account_key} - {company}"
@@ -242,7 +242,6 @@ def get_or_create_account(
         debug_log(
             f"Error creating account {account_name}: {str(e)}",
             "GL Account Creation Error",
-            trace=True,
         )
         return None
 

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-29 04:11:36 by dannyaudian
+# Last modified: 2025-07-02 16:03:46 by dannyaudian
 
 from __future__ import unicode_literals
 
@@ -20,7 +20,7 @@ required_apps = ["erpnext", "hrms"]
 before_install = "payroll_indonesia.fixtures.setup.before_install"
 after_install = "payroll_indonesia.fixtures.setup.after_install"
 after_sync = "payroll_indonesia.fixtures.setup.after_sync"
-after_migrate = "payroll_indonesia.fixtures.setup.setup_all_accounts"
+after_migrate = "payroll_indonesia.fixtures.setup.setup_accounts"
 
 # List view JS
 doctype_list_js = {
@@ -64,6 +64,9 @@ doc_events = {
     "Company": {
         "after_insert": "payroll_indonesia.fixtures.setup.setup_company_accounts",
         "on_update": "payroll_indonesia.fixtures.setup.setup_company_accounts",
+    },
+    "Payment Entry": {
+        "on_submit": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.payment_hooks.on_payment_entry_submit",
     },
 }
 

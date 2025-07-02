@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-29 00:04:51 by dannyaudian
+# Last modified: 2025-07-02 15:10:03 by dannyaudian
 
 """PPh 21 Settings DocType controller with centralized validation."""
 
@@ -34,6 +34,11 @@ class PPh21Settings(Document):
 
     def validate(self):
         """Validate settings using centralized validation module."""
+        # Skip validation if table doesn't exist yet
+        if not frappe.db.table_exists("PPh 21 Settings"):
+            logger.info("PPh 21 Settings table does not exist yet, skipping validation")
+            return
+
         try:
             # Delegate validation to central validations module
             validations.validate_pph21_settings(self)
@@ -52,6 +57,11 @@ class PPh21Settings(Document):
 
     def on_update(self):
         """Update settings when document is updated."""
+        # Skip if table doesn't exist yet
+        if not frappe.db.table_exists("PPh 21 Settings"):
+            logger.info("PPh 21 Settings table does not exist yet, skipping on_update")
+            return
+
         # Avoid recursion if updating from config
         if self._updating_from_config or getattr(self.flags, "ignore_on_update", False):
             return
@@ -68,6 +78,13 @@ class PPh21Settings(Document):
     @safe_execute(log_exception=True)
     def _ensure_tax_brackets(self):
         """Ensure tax brackets table has values."""
+        # Check if child table exists
+        if not frappe.db.table_exists("PPh 21 Tax Bracket"):
+            logger.warning(
+                "PPh 21 Tax Bracket table does not exist yet, skipping tax brackets setup"
+            )
+            return
+
         if not self.bracket_table or len(self.bracket_table) == 0:
             # Get tax brackets from configuration
             config = get_live_config()
@@ -93,6 +110,11 @@ class PPh21Settings(Document):
     @safe_execute(log_exception=True)
     def _ensure_ptkp_values(self):
         """Ensure PTKP values table has values."""
+        # Check if child table exists
+        if not frappe.db.table_exists("PPh 21 PTKP"):
+            logger.warning("PPh 21 PTKP table does not exist yet, skipping PTKP values setup")
+            return
+
         if not self.ptkp_table or len(self.ptkp_table) == 0:
             # Get PTKP values from configuration
             config = get_live_config()
@@ -150,6 +172,13 @@ class PPh21Settings(Document):
     @safe_execute(log_exception=True)
     def _sync_from_payroll_settings(self):
         """Update settings from Payroll Indonesia Settings."""
+        # Skip if main table doesn't exist
+        if not frappe.db.table_exists("PPh 21 Settings"):
+            logger.warning(
+                "PPh 21 Settings table does not exist yet, skipping sync from Payroll Settings"
+            )
+            return
+
         # Get centralized settings
         config = get_live_config()
         tax_config = config.get("tax", {})
@@ -164,21 +193,32 @@ class PPh21Settings(Document):
             ("biaya_jabatan_max", "biaya_jabatan_max", 500000.0),
         ]
 
-        # Update fields via db_set to avoid triggering validate
-        for field, config_field, default in fields:
-            value = tax_config.get(config_field, default)
-            if hasattr(self, field) and self.get(field) != value:
-                self.db_set(field, value, update_modified=False)
+        try:
+            # Update fields via db_set to avoid triggering validate
+            for field, config_field, default in fields:
+                value = tax_config.get(config_field, default)
+                if hasattr(self, field) and self.get(field) != value:
+                    self.db_set(field, value, update_modified=False)
 
-        # Update modified timestamp
-        self.db_set("modified", now_datetime(), update_modified=False)
-        frappe.db.commit()
+            # Update modified timestamp
+            self.db_set("modified", now_datetime(), update_modified=False)
+            frappe.db.commit()
 
-        logger.info("Settings updated from central configuration")
+            logger.info("Settings updated from central configuration")
+        except Exception as e:
+            logger.error(f"Error updating settings from configuration: {str(e)}")
+            frappe.log_error(f"Error updating settings from configuration: {str(e)}")
 
     @safe_execute(log_exception=True)
     def _sync_to_payroll_settings(self):
         """Sync changes to Payroll Indonesia Settings."""
+        # Skip if related table doesn't exist
+        if not frappe.db.table_exists("Payroll Indonesia Settings"):
+            logger.warning(
+                "Payroll Indonesia Settings table does not exist yet, skipping sync to Payroll Settings"
+            )
+            return
+
         # Only sync if Payroll Indonesia Settings exists
         if not frappe.db.exists("DocType", "Payroll Indonesia Settings"):
             return
@@ -213,12 +253,18 @@ class PPh21Settings(Document):
 
         except Exception as e:
             logger.error(f"Error syncing to Payroll Indonesia Settings: {str(e)}")
+            frappe.log_error(f"Error syncing to Payroll Indonesia Settings: {str(e)}")
 
 
 # Public function to update settings from configuration
 @safe_execute(log_exception=True)
 def update_from_config(doc=None):
     """Update PPh 21 Settings from configuration."""
+    # Skip if table doesn't exist yet
+    if not frappe.db.table_exists("PPh 21 Settings"):
+        logger.warning("PPh 21 Settings table does not exist yet, skipping update from config")
+        return None
+
     # Get document if not provided
     if not doc:
         if frappe.db.exists("PPh 21 Settings", "PPh 21 Settings"):
@@ -247,18 +293,25 @@ def update_from_config(doc=None):
         doc.flags.ignore_on_update = True
         doc.save(ignore_permissions=True)
 
-        # Ensure tables are populated
+        # Ensure tables are populated if they exist
         doc._ensure_tax_brackets()
         doc._ensure_ptkp_values()
 
-        # Save again if needed
-        if not doc.ptkp_table or not doc.bracket_table:
+        # Check if child tables were populated and save again if needed
+        if (hasattr(doc, "ptkp_table") and not doc.ptkp_table) or (
+            hasattr(doc, "bracket_table") and not doc.bracket_table
+        ):
             doc.flags.ignore_validate = True
             doc.flags.ignore_on_update = True
             doc.save(ignore_permissions=True)
 
         logger.info("PPh 21 Settings updated from configuration")
         return doc
+
+    except Exception as e:
+        logger.error(f"Error updating PPh 21 Settings from config: {str(e)}")
+        frappe.log_error(f"Error updating PPh 21 Settings from config: {str(e)}")
+        return None
 
     finally:
         # Always reset flag

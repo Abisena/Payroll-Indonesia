@@ -21,7 +21,7 @@ def get_config() -> Dict[str, Any]:
     global _config_cache
     if _config_cache is not None:
         return _config_cache
-    config_path = os.path.join(os.path.dirname(__file__), "config", "defaults.json")
+    config_path = os.path.join(os.path.dirname(__file__), "defaults.json")
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
     with open(config_path, "r", encoding="utf-8") as f:
