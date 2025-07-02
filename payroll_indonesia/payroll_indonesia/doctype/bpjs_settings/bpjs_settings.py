@@ -58,7 +58,7 @@ class BPJSSettings(Document):
             self._validate_salary_thresholds()
             debug_log("BPJS Settings validated successfully", "BPJS Settings")
         except Exception as e:
-            debug_log(f"Error validating BPJS Settings: {str(e)}", "BPJS Settings", trace=True)
+            debug_log(f"Error validating BPJS Settings: {str(e)}", "BPJS Settings")
             frappe.log_error(f"Error validating BPJS Settings: {str(e)}")
             raise
 
@@ -77,7 +77,7 @@ class BPJSSettings(Document):
 
             debug_log("BPJS Settings updated successfully", "BPJS Settings")
         except Exception as e:
-            debug_log(f"Error in BPJS Settings on_update: {str(e)}", "BPJS Settings", trace=True)
+            debug_log(f"Error in BPJS Settings on_update: {str(e)}", "BPJS Settings")
             frappe.log_error(f"Error in BPJS Settings on_update: {str(e)}")
 
     def _validate_percentages(self) -> None:
@@ -199,8 +199,7 @@ class BPJSSettings(Document):
             except Exception as e:
                 debug_log(
                     f"Error setting up BPJS accounts for {company}: {str(e)}",
-                    "BPJS Settings",
-                    trace=True,
+                    "BPJS Settings"
                 )
                 results["failed"].append(company)
 
@@ -296,8 +295,7 @@ class BPJSSettings(Document):
             except Exception as e:
                 debug_log(
                     f"Error creating BPJS payable account {account_data.get('account_name')}: {str(e)}",
-                    "BPJS Settings",
-                    trace=True,
+                    "BPJS Settings"
                 )
 
         return created_accounts
@@ -345,8 +343,7 @@ class BPJSSettings(Document):
             except Exception as e:
                 debug_log(
                     f"Error creating BPJS expense account {account_data.get('account_name')}: {str(e)}",
-                    "BPJS Settings",
-                    trace=True,
+                    "BPJS Settings"
                 )
 
         return created_accounts
@@ -401,8 +398,7 @@ class BPJSSettings(Document):
             except Exception as e:
                 debug_log(
                     f"Error updating salary structure {structure.name}: {str(e)}",
-                    "BPJS Settings",
-                    trace=True,
+                    "BPJS Settings"
                 )
 
         if updated_count > 0:
@@ -460,7 +456,7 @@ def setup_bpjs_settings() -> bool:
         debug_log("BPJS Settings created successfully", "BPJS Settings")
         return True
     except Exception as e:
-        debug_log(f"Error setting up BPJS Settings: {str(e)}", "BPJS Settings", trace=True)
+        debug_log(f"Error setting up BPJS Settings: {str(e)}", "BPJS Settings")
         frappe.log_error(f"Error setting up BPJS Settings: {str(e)}")
         return False
 
@@ -522,6 +518,6 @@ def update_bpjs_settings() -> bool:
 
         return True
     except Exception as e:
-        debug_log(f"Error updating BPJS Settings: {str(e)}", "BPJS Settings", trace=True)
+        debug_log(f"Error updating BPJS Settings: {str(e)}", "BPJS Settings")
         frappe.log_error(f"Error updating BPJS Settings: {str(e)}")
         return False
