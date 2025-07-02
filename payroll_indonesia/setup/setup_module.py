@@ -4,18 +4,15 @@ Provides centralized setup functions used during installation and updates.
 """
 
 import logging
-from typing import Dict, Any, Optional
-
-# from typing import Dict, Any, List, Optional, Tuple, Union, cast
+from typing import Dict, Any, Optional, List, cast
 
 import frappe
 from frappe import _
-from frappe.utils import flt, now
+from frappe.utils import flt, now_datetime
 
 from payroll_indonesia.config.config import get_live_config
 from payroll_indonesia.frappe_helpers import safe_execute, doc_exists
-
-# from payroll_indonesia.frappe_helpers import safe_execute, ensure_doc_exists, doc_exists
+from payroll_indonesia.setup.settings_migration import migrate_all_settings
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -69,6 +66,11 @@ def setup_payroll_settings(config: Dict[str, Any]) -> bool:
     """
     logger.info(_("Setting up Payroll Indonesia Settings"))
 
+    # Check if DocType exists
+    if not frappe.db.table_exists("Payroll Indonesia Settings"):
+        logger.warning(_("Payroll Indonesia Settings DocType does not exist"))
+        return False
+
     settings_name = "Payroll Indonesia Settings"
 
     if not doc_exists(settings_name, settings_name):
@@ -110,6 +112,11 @@ def setup_salary_components(config: Dict[str, Any]) -> bool:
         bool: True if successful, False otherwise
     """
     logger.info(_("Setting up salary components"))
+
+    # Check if DocType exists
+    if not frappe.db.table_exists("Salary Component"):
+        logger.warning(_("Salary Component DocType does not exist"))
+        return False
 
     components_config = config.get("salary_components", {})
 
@@ -183,6 +190,11 @@ def setup_property_setters(config: Dict[str, Any]) -> bool:
     """
     logger.info(_("Setting up property setters"))
 
+    # Check if DocType exists
+    if not frappe.db.table_exists("Property Setter"):
+        logger.warning(_("Property Setter DocType does not exist"))
+        return False
+
     property_setters = [
         {
             "doctype": "Salary Structure",
@@ -245,6 +257,15 @@ def setup_bpjs_mappings_for_companies(config: Dict[str, Any]) -> bool:
         bool: True if successful, False otherwise
     """
     logger.info(_("Setting up BPJS Account Mappings for companies"))
+
+    # Check if DocType exists
+    if not frappe.db.table_exists("BPJS Account Mapping"):
+        logger.warning(_("BPJS Account Mapping DocType does not exist"))
+        return False
+
+    if not frappe.db.table_exists("Company"):
+        logger.warning(_("Company DocType does not exist"))
+        return False
 
     companies = frappe.get_all("Company", filters={"is_group": 0, "disabled": 0}, pluck="name")
 
@@ -329,7 +350,10 @@ def create_bpjs_mapping_for_company(
 @safe_execute(default_value=False, log_exception=True)
 def migrate_config_to_settings(config: Dict[str, Any]) -> bool:
     """
-    Migrate configuration from JSON to the Payroll Indonesia Settings DocType.
+    Migrate configuration from defaults.json to the Payroll Indonesia Settings DocType.
+    
+    This function delegates migration of different sections to specialized helpers
+    in the settings_migration module.
 
     Args:
         config: Configuration dictionary
@@ -337,51 +361,68 @@ def migrate_config_to_settings(config: Dict[str, Any]) -> bool:
     Returns:
         bool: True if successful, False otherwise
     """
+    logger.info(_("Starting migration of configuration to Payroll Indonesia Settings"))
+    
+    # Check if DocType exists
+    if not frappe.db.table_exists("Payroll Indonesia Settings"):
+        logger.warning(_("Payroll Indonesia Settings DocType does not exist"))
+        return False
+    
     if not config:
         logger.warning(_("No configuration to migrate"))
         return False
 
-    if not doc_exists("DocType", "Payroll Indonesia Settings"):
-        logger.warning(_("Payroll Indonesia Settings DocType not found"))
-        return False
-
     try:
-        settings = frappe.get_doc("Payroll Indonesia Settings", "Payroll Indonesia Settings")
-        settings_exists = True
-    except frappe.DoesNotExistError:
-        settings = frappe.new_doc("Payroll Indonesia Settings")
-        settings.document_name = "Payroll Indonesia Settings"
-        settings_exists = False
-
-    # Update app info
-    app_info = config.get("app_info", {})
-    settings.app_version = app_info.get("version", "1.0.0")
-    settings.app_last_updated = app_info.get("last_updated", now())
-    settings.app_updated_by = frappe.session.user
-
-    # Update BPJS settings
-    bpjs = config.get("bpjs", {})
-    if bpjs:
-        settings.kesehatan_employee_percent = flt(bpjs.get("kesehatan_employee_percent", 1.0))
-        settings.kesehatan_employer_percent = flt(bpjs.get("kesehatan_employer_percent", 4.0))
-        settings.kesehatan_max_salary = flt(bpjs.get("kesehatan_max_salary", 12000000.0))
-        settings.jht_employee_percent = flt(bpjs.get("jht_employee_percent", 2.0))
-        settings.jht_employer_percent = flt(bpjs.get("jht_employer_percent", 3.7))
-        settings.jp_employee_percent = flt(bpjs.get("jp_employee_percent", 1.0))
-        settings.jp_employer_percent = flt(bpjs.get("jp_employer_percent", 2.0))
-        settings.jp_max_salary = flt(bpjs.get("jp_max_salary", 9077600.0))
-        settings.jkk_percent = flt(bpjs.get("jkk_percent", 0.24))
-        settings.jkm_percent = flt(bpjs.get("jkm_percent", 0.3))
-
-    # Save the settings
-    settings.flags.ignore_permissions = True
-
-    if settings_exists:
-        settings.save(ignore_permissions=True)
-        logger.info(_("Updated existing Payroll Indonesia Settings"))
-    else:
-        settings.insert(ignore_permissions=True)
-        logger.info(_("Created new Payroll Indonesia Settings"))
-
-    frappe.db.commit()
-    return True
+        # Get or create settings document
+        settings_name = "Payroll Indonesia Settings"
+        if doc_exists(settings_name, settings_name):
+            settings = frappe.get_doc(settings_name, settings_name)
+        else:
+            settings = frappe.new_doc(settings_name)
+            settings.document_name = settings_name
+        
+        # Perform the migration
+        results = migrate_all_settings(settings, config)
+        
+        # Save the document
+        settings.flags.ignore_permissions = True
+        
+        if settings.is_new():
+            settings.insert(ignore_permissions=True)
+            logger.info(_("Created new Payroll Indonesia Settings with migrated configuration"))
+        else:
+            settings.save(ignore_permissions=True)
+            logger.info(_("Updated existing Payroll Indonesia Settings with migrated configuration"))
+        
+        frappe.db.commit()
+        
+        # Log migration results
+        succeeded = sum(1 for result in results.values() if result)
+        failed = len(results) - succeeded
+        
+        logger.info(
+            _("Configuration migration completed: {0}/{1} sections migrated successfully")
+            .format(succeeded, len(results))
+        )
+        
+        if failed > 0:
+            logger.warning(
+                _("Failed to migrate {0} sections")
+                .format(failed)
+            )
+            
+            # Log the failed sections
+            for section, success in results.items():
+                if not success:
+                    logger.warning(_("Failed to migrate section: {0}").format(section))
+        
+        return succeeded > 0
+        
+    except Exception as e:
+        logger.error(_("Error migrating configuration to settings: {0}").format(str(e)))
+        frappe.log_error(
+            _("Error migrating configuration to settings: {0}\n{1}")
+            .format(str(e), frappe.get_traceback()),
+            "Configuration Migration Error"
+        )
+        return False
