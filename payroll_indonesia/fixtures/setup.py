@@ -461,7 +461,7 @@ def setup_accounts(config=None, specific_company=None):
             debug_log(f"Setting up accounts for company: {company.name}", "Account Setup")
 
             # Create BPJS liability accounts
-            liability_parent = _create_bpjs_liability_parent(company.name)
+            liability_parent = _create_bpjs_liability_parent(company.name, company.abbr)
             if not liability_parent:
                 debug_log(
                     f"Failed to create liability parent account for {company.name}", "Account Setup"
@@ -470,7 +470,7 @@ def setup_accounts(config=None, specific_company=None):
                 continue
 
             # Create expense accounts
-            expense_parent = _create_bpjs_expense_parent(company.name)
+            expense_parent = _create_bpjs_expense_parent(company.name, company.abbr)
             if not expense_parent:
                 debug_log(
                     f"Failed to create expense parent account for {company.name}", "Account Setup"
@@ -481,6 +481,7 @@ def setup_accounts(config=None, specific_company=None):
             # Create BPJS liability accounts from config
             _create_bpjs_accounts_from_config(
                 company.name,
+                company.abbr,
                 "bpjs_payable_accounts",
                 liability_parent,
                 "Liability",
@@ -490,14 +491,20 @@ def setup_accounts(config=None, specific_company=None):
 
             # Create BPJS expense accounts from config
             _create_bpjs_accounts_from_config(
-                company.name, "bpjs_expense_accounts", expense_parent, "Expense", config, results
+                company.name,
+                company.abbr,
+                "bpjs_expense_accounts",
+                expense_parent,
+                "Expense",
+                config,
+                results,
             )
 
             # Create payroll expense accounts from config
-            _create_expense_accounts_from_config(company.name, config, results)
+            _create_expense_accounts_from_config(company.name, company.abbr, config, results)
 
             # Create payroll payable accounts from config
-            _create_payable_accounts_from_config(company.name, config, results)
+            _create_payable_accounts_from_config(company.name, company.abbr, config, results)
 
             debug_log(f"Completed account setup for company: {company.name}", "Account Setup")
 
@@ -517,12 +524,15 @@ def setup_accounts(config=None, specific_company=None):
     return results
 
 
-def _create_bpjs_accounts_from_config(company, account_key, parent, root_type, config, results):
+def _create_bpjs_accounts_from_config(
+    company, company_abbr, account_key, parent, root_type, config, results
+):
     """
     Create BPJS accounts from configuration
 
     Args:
         company: Company name
+        company_abbr: Company abbreviation
         account_key: Key in gl_accounts section of config
         parent: Parent account
         root_type: Root type (Liability or Expense)
@@ -577,12 +587,13 @@ def _create_bpjs_accounts_from_config(company, account_key, parent, root_type, c
             debug_log(f"Error creating {account_name}: {str(e)}", "Account Setup", trace=True)
 
 
-def _create_expense_accounts_from_config(company, config, results):
+def _create_expense_accounts_from_config(company, company_abbr, config, results):
     """
     Create expense accounts from configuration
 
     Args:
         company: Company name
+        company_abbr: Company abbreviation
         config: Configuration dictionary
         results: Results dictionary to update
     """
@@ -641,12 +652,13 @@ def _create_expense_accounts_from_config(company, config, results):
             debug_log(f"Error creating {account_name}: {str(e)}", "Account Setup", trace=True)
 
 
-def _create_payable_accounts_from_config(company, config, results):
+def _create_payable_accounts_from_config(company, company_abbr, config, results):
     """
     Create payable accounts from configuration
 
     Args:
         company: Company name
+        company_abbr: Company abbreviation
         config: Configuration dictionary
         results: Results dictionary to update
     """
@@ -711,7 +723,7 @@ def _create_payable_accounts_from_config(company, config, results):
             debug_log(f"Error creating {account_name}: {str(e)}", "Account Setup", trace=True)
 
 
-def _create_bpjs_liability_parent(company):
+def _create_bpjs_liability_parent(company, company_abbr):
     """Create or get BPJS liability parent account"""
     from payroll_indonesia.payroll_indonesia.utils import create_parent_liability_account, debug_log
 
@@ -728,7 +740,7 @@ def _create_bpjs_liability_parent(company):
     return parent
 
 
-def _create_bpjs_expense_parent(company):
+def _create_bpjs_expense_parent(company, company_abbr):
     """Create or get BPJS expense parent account"""
     from payroll_indonesia.payroll_indonesia.utils import create_parent_expense_account, debug_log
 

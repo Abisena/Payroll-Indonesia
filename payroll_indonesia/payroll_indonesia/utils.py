@@ -245,3 +245,122 @@ def get_formatted_currency(value, currency=None):
 
     # Format as money with currency symbol
     return fmt_money(flt(value), currency=currency)
+
+
+@safe_execute(default_value=None, log_exception=True)
+def create_account(
+    company: str,
+    account_name: str,
+    account_type: str = "Payable",
+    parent: Optional[str] = None,
+    root_type: Optional[str] = None,
+    is_group: int = 0,
+) -> Optional[str]:
+    """
+    Create account using get_or_create_account.
+
+    This is a wrapper function to maintain backward compatibility
+    with existing code that expects create_account function.
+
+    Args:
+        company: Company name
+        account_name: Account name (without company suffix)
+        account_type: Payable/Expense/Income/Asset/etc.
+        parent: Parent account (optional, will be determined automatically if not provided)
+        root_type: Asset/Liability/Expense/Income
+        is_group: 1 for group account, 0 otherwise
+
+    Returns:
+        str: Full account name, or None if failed
+    """
+    return get_or_create_account(
+        company=company,
+        account_name=account_name,
+        account_type=account_type,
+        is_group=is_group,
+        root_type=root_type,
+    )
+
+
+@safe_execute(default_value=None, log_exception=True)
+def create_parent_liability_account(company: str) -> Optional[str]:
+    """
+    Create or get BPJS liability parent account.
+
+    Args:
+        company: Company name
+
+    Returns:
+        str: Full parent account name, or None if failed
+    """
+    debug_log(f"Creating BPJS liability parent account for company: {company}", "Account Setup")
+
+    parent = get_or_create_account(
+        company=company,
+        account_name="BPJS Liabilities",
+        account_type="Tax",
+        is_group=1,
+        root_type="Liability",
+    )
+
+    if parent:
+        debug_log(f"BPJS liability parent account: {parent}", "Account Setup")
+    else:
+        debug_log(
+            f"Failed to create BPJS liability parent account for company: {company}",
+            "Account Setup",
+        )
+
+    return parent
+
+
+@safe_execute(default_value=None, log_exception=True)
+def create_parent_expense_account(company: str) -> Optional[str]:
+    """
+    Create or get BPJS expense parent account.
+
+    Args:
+        company: Company name
+
+    Returns:
+        str: Full parent account name, or None if failed
+    """
+    debug_log(f"Creating BPJS expense parent account for company: {company}", "Account Setup")
+
+    parent = get_or_create_account(
+        company=company,
+        account_name="BPJS Expenses",
+        account_type="Expense Account",
+        is_group=1,
+        root_type="Expense",
+    )
+
+    if parent:
+        debug_log(f"BPJS expense parent account: {parent}", "Account Setup")
+    else:
+        debug_log(
+            f"Failed to create BPJS expense parent account for company: {company}",
+            "Account Setup",
+        )
+
+    return parent
+
+
+@safe_execute(default_value=None, log_exception=True)
+def find_parent_account(
+    company: str, account_type: str, root_type: Optional[str] = None
+) -> Optional[str]:
+    """
+    Find parent account based on type/root_type.
+
+    This is a wrapper around _find_parent_account to maintain backward compatibility.
+
+    Args:
+        company: Company name
+        account_type: Account type (Payable, Expense, etc.)
+        root_type: Root type (Asset/Liability/Expense/Income)
+
+    Returns:
+        str: Parent account name, or None if not found
+    """
+    return _find_parent_account(company, account_type, root_type)
