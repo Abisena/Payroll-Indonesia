@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-06-29 02:15:45 by dannyaudian
+# Last modified: 2025-07-02 15:24:36 by dannyaudian
 
 """
 Payroll Indonesia API endpoints.
@@ -305,4 +305,46 @@ def get_bpjs_settings() -> Dict[str, Any]:
         return {"status": "success", "data": bpjs_config}
     except Exception as e:
         logger.error(f"Error getting BPJS settings: {str(e)}")
+        return {"status": "error", "message": str(e)}
+
+
+@frappe.whitelist(allow_guest=False)
+def get_bpjs_limits() -> Dict[str, Any]:
+    """
+    Get BPJS validation limits from configuration.
+    
+    Returns validation rules for BPJS percentage fields and salary thresholds
+    that can be used for client-side validation.
+
+    Returns:
+        dict: BPJS validation limits
+    """
+    try:
+        cfg = get_live_config()
+        
+        # Get validation rules from config
+        validation_rules = cfg.get("bpjs_settings", {}).get("validation_rules", {})
+        
+        if not validation_rules:
+            # Create default limits if none found in config
+            validation_rules = {
+                "percentage_ranges": [
+                    {"field": "kesehatan_employee_percent", "min": 0, "max": 5},
+                    {"field": "kesehatan_employer_percent", "min": 0, "max": 10},
+                    {"field": "jht_employee_percent", "min": 0, "max": 5},
+                    {"field": "jht_employer_percent", "min": 0, "max": 10},
+                    {"field": "jp_employee_percent", "min": 0, "max": 5},
+                    {"field": "jp_employer_percent", "min": 0, "max": 5},
+                    {"field": "jkk_percent", "min": 0, "max": 5},
+                    {"field": "jkm_percent", "min": 0, "max": 5}
+                ],
+                "salary_thresholds": [
+                    {"field": "kesehatan_max_salary", "min": 0},
+                    {"field": "jp_max_salary", "min": 0}
+                ]
+            }
+            
+        return {"status": "success", "data": validation_rules}
+    except Exception as e:
+        logger.error(f"Error getting BPJS limits: {str(e)}")
         return {"status": "error", "message": str(e)}
