@@ -49,8 +49,8 @@ doc_events = {
         "on_update": "payroll_indonesia.payroll_indonesia.tax.pph21_settings.on_update"
     },
     "BPJS Settings": {
-        "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.bpjs_settings.validate",
-        "on_update": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.bpjs_settings.on_update",
+        "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.utils.validate_settings",
+        "on_update": "payroll_indonesia.payroll_indonesia.doctype.bpjs_settings.utils.setup_accounts",
     },
     "BPJS Account Mapping": {
         "validate": "payroll_indonesia.payroll_indonesia.doctype.bpjs_account_mapping.bpjs_account_mapping.validate",
