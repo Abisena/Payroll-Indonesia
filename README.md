@@ -1,128 +1,96 @@
 # Payroll Indonesia
 
-Payroll module for Indonesian companies, integrated with ERPNext's Human Resource Management system and customized for Indonesian regulations.
+Payroll Indonesia by PT. Innovasi Terbaik Bangsa is an ERPNext v15 payroll module specifically designed for Indonesian companies. This module is modular, scalable, and compatible with both VPS and Frappe Cloud.
 
-## Features
+## 🚀 Key Features
 
-- Integration with native ERPNext payroll modules (Salary Component, Salary Structure, Salary Slip, Payroll Entry)
-- BPJS (Health & Employment Insurance) calculations
-- PPh 21 TER (Monthly) tax calculation + progressive December rates for SPT
-- Support for various tax statuses (TK/K)
-- NPWP Spouse Joint processing
-- Support for Non-Permanent Employees (PMK 168/2023)
-- December tax correction (SPT)
-- Ready for VPS or Frappe Cloud deployment
+* **🛠 ERPNext HRM Integration:** Fully integrated with Salary Component, Salary Structure, Salary Slip, Payroll Entry, Employee Tax Summary, and Payroll Indonesia Settings modules.
+* **💡 Automated BPJS Calculation:** Automatic calculation of BPJS Kesehatan (Healthcare) and Ketenagakerjaan (Employment Security - JHT, JP, JKK, JKM) complying with the latest regulations, with validation for contribution percentages and maximum salary limits.
+* **📊 PPh 21 Calculation:** Supports TER (PMK 168/2023) and monthly progressive methods, special calculations for December for annual SPT reporting, including validation for PTKP and Tax Bracket settings.
+* **⚡ Memory Optimization:** Efficient YTD and YTM calculations, comprehensive error handling to manage RAM usage, and complete integration with dedicated calculation modules.
 
-## Installation
+## 📦 Installation
 
-### Prerequisites
-- ERPNext v15
-- Frappe Framework v15
+### ✅ Prerequisites
 
-### From GitHub
+* ERPNext v15
+* Frappe Framework v15
+
+### 📌 Installation via GitHub
+
 ```bash
-# In your bench directory
 bench get-app https://github.com/dannyaudian/payroll_indonesia
-bench --site yoursite.local install-app payroll_indonesia
+bench --site your_site.local install-app payroll_indonesia
 bench migrate
 ```
 
-## Required Configuration
+### 🛠 Initial Setup
 
-### BPJS Account Setup
-This system requires GL accounts (Chart of Accounts) to record BPJS deductions and expenses.
+1. **🔄 Database Migration:** Run the database migration before setup:
 
-#### 1. Employee Deduction Accounts (Liability)
-- BPJS Kesehatan - Employee
-- BPJS JHT - Employee
-- BPJS JP - Employee
+```bash
+bench --site your_site.local migrate
+```
 
-#### 2. Company Expense Accounts (Expense)
-- BPJS Kesehatan - Employer
-- BPJS JHT - Employer
-- BPJS JP - Employer
-- BPJS JKK - Employer
-- BPJS JKM - Employer
+2. **⚙ Manual Setup After Installation:**
 
-#### 3. Company Liability Accounts (Liability)
-- BPJS Kesehatan - Employer
-- BPJS JHT - Employer
-- BPJS JP - Employer
-- BPJS JKK - Employer
-- BPJS JKM - Employer
+```bash
+bench --site your_site.local execute payroll_indonesia.fixtures.setup.after_install
+```
 
-> **Tip:** Place these accounts under Current Liabilities and Payroll Expenses according to your company's internal structure.
+or via bench console:
 
-#### 4. BPJS Account Mapping Setup
-1. Open DocType "BPJS Account Mapping"
-2. Select your company
-3. Link accounts for each component (employee & employer)
-4. Save and activate for Salary Slip
+```python
+from payroll_indonesia.fixtures import setup
+setup.after_install()
+```
 
-#### 5. BPJS Settings Configuration
-- Define contribution percentages (employee & employer) per component
-- Set maximum salary thresholds
-- Specify GL accounts for BPJS payments when using Payment Entry
+## 📝 Required Configuration
 
-### 🧾 Salary Component Account Mapping
-This module uses two strategies for determining GL accounts during Salary Slip processing:
+### 🔧 Payroll Indonesia Settings
 
-#### ✅ Default (Non-BPJS) Components
-For regular components such as Basic Salary, Allowances, and Deductions, you must fill in the Default Account field in the Salary Component:
+* Customize basic Payroll Indonesia settings including tax calculation methods, BPJS contributions, PTKP, and TER configurations.
+* Validation ensures configuration values are within allowed ranges.
 
-- Ensure that each Salary Component points to the correct account in your Chart of Accounts (e.g., Payroll Expense or Deductions).
-- These accounts will be used when generating Journal Entries unless overridden.
+### 📌 BPJS Account Mapping
 
-#### 🚫 BPJS Components (Auto-Mapped)
-For all BPJS-related components, such as:
-- BPJS Kesehatan (Employee & Employer)
-- BPJS JHT (Employee & Employer)
-- BPJS JP (Employee & Employer)
-- BPJS JKK / JKM
+* Use the **BPJS Account Mapping** DocType to set up BPJS Employee and Employer accounts.
+* Ensure account configurations align with the company's Chart of Accounts structure.
 
-Do not fill in the Default Account field in Salary Component.
+### 📐 PPh 21 Settings
 
-Instead:
-- The system will automatically determine the correct accounts using the BPJS Account Mapping document.
-- This ensures flexibility and avoids conflicting entries across companies with different account structures.
+* Access **PPh 21 Settings**.
+* Select calculation methods: Progressive or TER.
+* Complete the PTKP table, Tax Bracket table (for Progressive), or TER table.
 
-> ℹ️ This separation ensures that account logic is clean: manual for standard components, and dynamic/centralized for BPJS.
+### 📑 Default Salary Structure
 
-### PPh 21 Settings
-This module supports two calculation methods:
+* Automatically available default salary structure named **"Struktur Gaji Tetap G1"**.
+* Earnings and deductions components comply with standard Indonesian regulations (BPJS, PPh21).
 
-- **Progressive** (default, according to tax bracket rates)
-- **TER** (Effective Average Rate - per PMK 168/2023)
+## 🔄 Optimization and Revision
 
-#### Configuration:
-1. Open "PPh 21 Settings"
-2. Select method: Progressive or TER
-3. Fill in:
-   - PTKP Table (PPh 21 PTKP)
-   - Tax Bracket Table (PPh 21 Tax Bracket) for Progressive
-   - TER Table (PPh 21 TER Table) for TER
-4. Enable "Use TER for Monthly Calculation" if using TER method
+The Payroll Indonesia module is modularly optimized to provide top performance and maintain a clear, integrated code structure across modules such as BPJS Settings, PPh21 Settings, Salary Slip, Employee Tax Summary, and Payroll Indonesia Settings. All configurations adhere to current standards, ensuring accuracy in calculations and validations.
 
-## Module Structure
-- **BPJS Settings** – Configure rates and salary thresholds
-- **BPJS Account Mapping** – Account mapping per company
-- **PPh 21 Settings** – Tax method configuration
-- **Salary Slip** – Override validation & Indonesian components
-- **Journal Entry** – Automation of entries based on mapping
+## 📁 Module Structure
 
-## Employee Setup for BPJS
-To control BPJS enrollment on an employee-by-employee basis:
-1. Open the Employee document
-2. Set the following fields:
-   - **ikut_bpjs_kesehatan**: Enable/disable BPJS Health Insurance
-   - **ikut_bpjs_ketenagakerjaan**: Enable/disable BPJS Employment Insurance
+* **📋 Payroll Entry:** Enhanced validation, automated Salary Slip integration.
+* **📃 Salary Slip:** Modular overrides for BPJS and PPh21 salary calculations.
+* **📊 Salary Structure:** Wildcard company ('%') functionality, automatic GL account mappings.
+* **👥 Employee & Auth Hooks:** Robust employee data validation, Indonesian region-specific user session integration.
+* **📈 Employee Tax Summary:** Automated YTD calculation, comprehensive annual tax summaries per employee.
+* **🛡 BPJS Settings & PPh 21 Settings:** Robust validation for contribution settings, salary limits, and automatic synchronization with central configurations.
 
-## Memory Optimization
-This module includes optimizations to reduce memory usage during salary slip processing:
-- Field initialization to prevent NoneType errors
-- Truncated error messages to avoid memory bloat
-- Garbage collection during batch processing
-- Optimized BPJS and tax calculations
+## 🛠️ Technical Notes
 
-## Status
-This module is actively being developed and used in production environments. Please report bugs or feature requests in GitHub Issues.
+* All code adheres to Flake8 standards and Pythonic best practices.
+* Efficient and clear logging using Python’s logging module.
+* Modular design featuring specialized utilities for BPJS, PPh21, YTD calculations, and field validations.
+
+## 📢 Status
+
+Actively developed and deployed across diverse production environments. For issue reporting and feature requests, visit our [GitHub Repository](https://github.com/dannyaudian/payroll_indonesia).
+
+---
+
+✨ **Last updated:** July 2025
