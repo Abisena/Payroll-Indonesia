@@ -1,16 +1,19 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2025, PT. Innovasi Terbaik Bangsa and contributors
 # For license information, please see license.txt
-# Last modified: 2025-05-11 13:01:12 by dannyaudian
+# Last modified: 2025-07-02 13:18:02 by dannyaudian
 
 """
 This module is a compatibility layer that forwards utility functions
 from the central utils module to maintain backward compatibility.
 """
 
+# FIXED: Use correct import path for get_default_config
+from payroll_indonesia.config.config import get_config as get_default_config
+
+# Import other utility functions
 from payroll_indonesia.payroll_indonesia.utils import (
     get_settings,
-    get_default_config,
     debug_log,
     find_parent_account,
     create_account,
@@ -117,7 +120,7 @@ def sync_with_payroll_settings(bpjs_doc):
                 needs_update = True
 
         if needs_update:
-            pi_settings.app_last_updated = "2025-05-11 13:01:12"
+            pi_settings.app_last_updated = "2025-07-02 13:18:02"
             pi_settings.app_updated_by = "dannyaudian"
             pi_settings.flags.ignore_validate = True
             pi_settings.flags.ignore_permissions = True
@@ -126,6 +129,5 @@ def sync_with_payroll_settings(bpjs_doc):
     except Exception as e:
         debug_log(
             f"Error syncing BPJS Settings to Payroll Indonesia Settings: {str(e)}",
-            "BPJS Settings Sync Error",
-            trace=True,
+            "BPJS Settings Sync"
         )
