@@ -77,7 +77,7 @@ class BPJSSettings(Document):
 
             debug_log("BPJS Settings updated successfully", "BPJS Settings")
         except Exception as e:
-            debug_log(f"Error in BPJS Settings on_update: {str(e)}", "BPJS Settings", trace=True)
+            debug_log(f"Error in BPJS Settings on_update: {str(e)}", "BPJS Settings")
             frappe.log_error(f"Error in BPJS Settings on_update: {str(e)}")
 
     def _validate_percentages(self) -> None:
