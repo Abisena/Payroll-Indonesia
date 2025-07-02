@@ -11,6 +11,20 @@ from frappe.model.document import Document
 # ---------------------------------------------------------------------------
 
 
+def validate(doc, method=None):
+    """
+    Global validation hook for BPJS Account Mapping document.
+    Called by background jobs and setup processes.
+    
+    Args:
+        doc: The document being validated
+        method: The method that triggered this hook (optional)
+    """
+    # This is a minimal stub implementation
+    # Additional validation logic can be added in the future
+    pass
+
+
 @frappe.whitelist()
 def get_mapping_for_company(company=None):
     """
