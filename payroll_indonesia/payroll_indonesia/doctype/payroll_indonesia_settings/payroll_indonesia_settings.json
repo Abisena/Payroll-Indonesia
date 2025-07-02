@@ -246,7 +246,7 @@
       "fieldname": "ter_rates_description",
       "fieldtype": "HTML",
       "label": "TER Rates Description",
-      "options": "<div class='alert alert-info'>TER rates are configured separately in PPh 21 TER Table entries for each TER category (TER A, TER B, TER C)</div>"
+      "options": "<div class=\"alert alert-info\">TER rates are configured separately in PPh 21 TER Table entries for each TER category (TER A, TER B, TER C)</div>"
     },
     {
       "fieldname": "ter_rate_tables_section",
