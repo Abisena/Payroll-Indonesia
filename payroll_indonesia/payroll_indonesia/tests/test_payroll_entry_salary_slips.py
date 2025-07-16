@@ -14,8 +14,8 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
     frappe.utils.getdate = lambda *a, **k: None
     frappe.utils.add_days = lambda d, n=0: d
     frappe.utils.add_months = lambda d, m=0: d
-    sys.modules["frappe"] = frappe
-    sys.modules["frappe.utils"] = frappe.utils
+    monkeypatch.setitem(sys.modules, "frappe", frappe)
+    monkeypatch.setitem(sys.modules, "frappe.utils", frappe.utils)
 
     # minimal Document class
     model_module = types.ModuleType("frappe.model")
@@ -34,8 +34,8 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
             self.docstatus = 1
 
     document_module.Document = Document
-    sys.modules["frappe.model"] = model_module
-    sys.modules["frappe.model.document"] = document_module
+    monkeypatch.setitem(sys.modules, "frappe.model", model_module)
+    monkeypatch.setitem(sys.modules, "frappe.model.document", document_module)
 
     # store salary slip docs
     slip_store = {}
@@ -56,15 +56,27 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
         return [f"SS-{i}" for i, _ in enumerate(entry.employees)]
     hrms_mod.make_salary_slips = make_salary_slips
     hrms_mod.enqueue_make_salary_slips = make_salary_slips
-    sys.modules["hrms"] = types.ModuleType("hrms")
-    sys.modules["hrms.payroll"] = types.ModuleType("hrms.payroll")
-    sys.modules["hrms.payroll.doctype"] = types.ModuleType("hrms.payroll.doctype")
-    sys.modules["hrms.payroll.doctype.payroll_entry"] = types.ModuleType("hrms.payroll.doctype.payroll_entry")
-    sys.modules["hrms.payroll.doctype.payroll_entry.payroll_entry"] = hrms_mod
+    monkeypatch.setitem(sys.modules, "hrms", types.ModuleType("hrms"))
+    monkeypatch.setitem(sys.modules, "hrms.payroll", types.ModuleType("hrms.payroll"))
+    monkeypatch.setitem(sys.modules, "hrms.payroll.doctype", types.ModuleType("hrms.payroll.doctype"))
+    monkeypatch.setitem(
+        sys.modules,
+        "hrms.payroll.doctype.payroll_entry",
+        types.ModuleType("hrms.payroll.doctype.payroll_entry"),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "hrms.payroll.doctype.payroll_entry.payroll_entry",
+        hrms_mod,
+    )
 
     # stub logger
     logger = types.SimpleNamespace(debug=lambda *a, **k: None, exception=lambda *a, **k: None)
-    sys.modules["payroll_indonesia.frappe_helpers"] = types.SimpleNamespace(logger=logger)
+    monkeypatch.setitem(
+        sys.modules,
+        "payroll_indonesia.frappe_helpers",
+        types.SimpleNamespace(logger=logger),
+    )
 
     # import modules under test
     import importlib.util
@@ -75,7 +87,11 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
     )
     funcs = importlib.util.module_from_spec(func_spec)
     func_spec.loader.exec_module(funcs)
-    sys.modules["payroll_indonesia.override.payroll_entry_functions"] = funcs
+    monkeypatch.setitem(
+        sys.modules,
+        "payroll_indonesia.override.payroll_entry_functions",
+        funcs,
+    )
 
     spec = importlib.util.spec_from_file_location(
         "payroll_indonesia.override.payroll_entry",
