@@ -52,8 +52,8 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
 
     # stub hrms payroll entry functions
     hrms_mod = types.ModuleType("hrms.payroll.doctype.payroll_entry.payroll_entry")
-    def make_salary_slips(payroll_entry_name):
-        return [f"SS-{i}" for i, _ in enumerate(entry.employees)]
+    def make_salary_slips(payroll_entry):
+        return [f"SS-{i}" for i, _ in enumerate(payroll_entry.employees)]
     hrms_mod.make_salary_slips = make_salary_slips
     hrms_mod.enqueue_make_salary_slips = make_salary_slips
     sys.modules["hrms"] = types.ModuleType("hrms")
