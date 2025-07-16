@@ -34,6 +34,7 @@ from payroll_indonesia.override.salary_slip.controller import (
     calculate_taxable_earnings,
     get_bpjs_deductions,
 )
+from payroll_indonesia.override.salary_slip.take_home_calculator import calculate_take_home_and_bpjs
 from payroll_indonesia.frappe_helpers import logger
 from payroll_indonesia.payroll_indonesia import utils
 
@@ -431,7 +432,9 @@ def _update_custom_fields(doc):
             gross_income += tax_components["totals"].get(NATURA_OBJEK_EFFECT, 0)
             deductions = tax_components["totals"].get(TAX_DEDUCTION_EFFECT, 0)
 
-            netto = gross_income - deductions
+            # Calculate take home and taxable base via helper
+            helper_res = calculate_take_home_and_bpjs(getattr(doc, "gross_pay", 0))
+            netto = helper_res["take_home_pay"]
 
             if hasattr(doc, "netto"):
                 doc.netto = netto

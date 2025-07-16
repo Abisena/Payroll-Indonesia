@@ -8,9 +8,11 @@
 from .controller import IndonesiaPayrollSalarySlip  # noqa: F401
 from .bpjs_calculator import calculate_bpjs  # noqa: F401
 from .salary_utils import calculate_ytd_and_ytm  # noqa: F401
+from .take_home_calculator import calculate_take_home_and_bpjs  # noqa: F401
 
 __all__ = [
     "IndonesiaPayrollSalarySlip",
     "calculate_bpjs",
     "calculate_ytd_and_ytm",
+    "calculate_take_home_and_bpjs",
 ]

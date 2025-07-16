@@ -16,6 +16,7 @@ from frappe.utils import flt, cint
 
 from payroll_indonesia.frappe_helpers import logger
 from payroll_indonesia.config.config import get_live_config, get_component_tax_effect
+from .take_home_calculator import calculate_take_home_and_bpjs
 from payroll_indonesia.constants import (
     DEFAULT_UMR,
     BPJS_KESEHATAN_EMPLOYEE_PERCENT,
@@ -465,47 +466,48 @@ def calculate_components(slip: Any) -> Dict[str, float]:
             percentages["jkm"] = BPJS_JKM_PERCENT
             logger.warning(f"BPJS JKM percent not found. Using default: {percentages['jkm']}%")
 
-        # Calculate each component
-        # Use existing value if available, otherwise calculate
-        if not kesehatan_employee_comp:
-            result["kesehatan_employee"] = calculate_bpjs(
-                base_salary, percentages["kesehatan_emp"], max_salary=kesehatan_max
-            )
+        # Calculate each component using helper
+        calc_rates = {
+            "kesehatan_employee_percent": percentages["kesehatan_emp"],
+            "kesehatan_employer_percent": percentages["kesehatan_com"],
+            "jht_employee_percent": percentages["jht_emp"],
+            "jht_employer_percent": percentages["jht_com"],
+            "jp_employee_percent": percentages["jp_emp"],
+            "jp_employer_percent": percentages["jp_com"],
+            "kesehatan_max_salary": kesehatan_max,
+            "jp_max_salary": jp_max,
+            "jkk_percent": percentages["jkk"],
+            "jkm_percent": percentages["jkm"],
+        }
 
-        result["kesehatan_employer"] = calculate_bpjs(
-            base_salary, percentages["kesehatan_com"], max_salary=kesehatan_max
-        )
+        calc_result = calculate_take_home_and_bpjs(base_salary, calc_rates)
 
-        if not jht_employee_comp:
-            result["jht_employee"] = calculate_bpjs(base_salary, percentages["jht_emp"])
+        # Use existing component amounts if present
+        if kesehatan_employee_comp:
+            result["kesehatan_employee"] = deduction_amounts[kesehatan_employee_comp]
+        else:
+            result["kesehatan_employee"] = calc_result["kesehatan_employee"]
 
-        result["jht_employer"] = calculate_bpjs(base_salary, percentages["jht_com"])
+        result["kesehatan_employer"] = calc_result["kesehatan_employer"]
 
-        if not jp_employee_comp:
-            result["jp_employee"] = calculate_bpjs(
-                base_salary, percentages["jp_emp"], max_salary=jp_max
-            )
+        if jht_employee_comp:
+            result["jht_employee"] = deduction_amounts[jht_employee_comp]
+        else:
+            result["jht_employee"] = calc_result["jht_employee"]
 
-        result["jp_employer"] = calculate_bpjs(
-            base_salary, percentages["jp_com"], max_salary=jp_max
-        )
+        result["jht_employer"] = calc_result["jht_employer"]
 
-        result["jkk"] = calculate_bpjs(base_salary, percentages["jkk"])
+        if jp_employee_comp:
+            result["jp_employee"] = deduction_amounts[jp_employee_comp]
+        else:
+            result["jp_employee"] = calc_result["jp_employee"]
 
-        result["jkm"] = calculate_bpjs(base_salary, percentages["jkm"])
+        result["jp_employer"] = calc_result["jp_employer"]
+        result["jkk"] = calc_result["jkk"]
+        result["jkm"] = calc_result["jkm"]
 
-        # Calculate totals
-        result["total_employee"] = (
-            result["kesehatan_employee"] + result["jht_employee"] + result["jp_employee"]
-        )
-
-        result["total_employer"] = (
-            result["kesehatan_employer"]
-            + result["jht_employer"]
-            + result["jp_employer"]
-            + result["jkk"]
-            + result["jkm"]
-        )
+        result["total_employee"] = calc_result["employee_total"]
+        result["total_employer"] = calc_result["employer_total"]
 
         employee_id = getattr(slip, "employee", "unknown")
         logger.debug(f"BPJS calculation for {employee_id}: {result}")
