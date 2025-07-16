@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "payroll_indonesia"
-version = "0.0.1"
+version = "0.1.0"
 description = "Payroll module for Indonesian companies with local regulatory features"
 authors = [
     {name = "PT. Innovasi Terbaik Bangsa", email = "danny.a.pratama@cao-group.co.id"}
