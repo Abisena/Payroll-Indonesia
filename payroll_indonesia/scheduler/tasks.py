@@ -429,10 +429,14 @@ def clear_caches():
 
 
 def cleanup_logs():
-    pass
+    """Clean up stale logs and background job records."""
+    try:
+        from payroll_indonesia.utilities.batch_processing import (
+            cleanup_old_batch_jobs_extended,
+        )
 
-def cleanup_logs():
-
-
-    pass
+        cleanup_old_batch_jobs_extended(days=30)
+        logger.info("Log cleanup completed successfully")
+    except Exception as e:
+        logger.warning(f"Error during log cleanup: {str(e)}")
 
