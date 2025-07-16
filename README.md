@@ -94,24 +94,17 @@ For more details, see the [Payroll Period documentation](https://docs.erpnext.co
 
 ## 📥 Automatic Salary Slip Submission
 
-When you submit a **Payroll Entry**, the module automatically creates and submits
-Salary Slips for all included employees. This automation uses the hooks and
-class overrides defined in `payroll_indonesia/hooks.py`. Ensure the following
-entries are active so Salary Slips are generated correctly:
+When you submit a **Payroll Entry**, salary slips are created and submitted by
+the `CustomPayrollEntry.on_submit` method. Ensure the following hook remains
+active so that the custom class is used:
 
 ```python
-doc_events = {
-    "Payroll Entry": {
-        "on_submit": "payroll_indonesia.override.payroll_entry_functions.create_salary_slips",
-    },
-}
-
 override_doctype_class = {
     "Payroll Entry": "payroll_indonesia.override.payroll_entry.CustomPayrollEntry",
 }
 ```
 
-These settings are installed by default, but verify they remain enabled if you
+This override is installed by default, but verify it remains enabled if you
 customize your hooks.
 
 ## 🔄 Optimization and Revision
