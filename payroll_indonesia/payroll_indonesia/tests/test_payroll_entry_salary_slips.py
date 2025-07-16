@@ -52,7 +52,9 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
 
     # stub hrms payroll entry functions
     hrms_mod = types.ModuleType("hrms.payroll.doctype.payroll_entry.payroll_entry")
+    call_counter = {"count": 0}
     def make_salary_slips(payroll_entry):
+        call_counter["count"] += 1
         return [f"SS-{i}" for i, _ in enumerate(payroll_entry.employees)]
     hrms_mod.make_salary_slips = make_salary_slips
     hrms_mod.enqueue_make_salary_slips = make_salary_slips
@@ -109,3 +111,4 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
 
     assert slip_store["SS-0"].docstatus == 1
     assert slip_store["SS-1"].docstatus == 1
+    assert call_counter["count"] == 1

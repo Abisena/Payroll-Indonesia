@@ -98,7 +98,7 @@ The Payroll Indonesia module is modularly optimized to provide top performance a
 
 ## 📁 Module Structure
 
-* **📋 Payroll Entry:** Enhanced validation, automated Salary Slip integration.
+* **📋 Payroll Entry:** Enhanced validation, automated Salary Slip integration. Salary slips are generated directly from `CustomPayrollEntry.on_submit` and not via a document event hook.
 * **📃 Salary Slip:** Modular overrides for BPJS and PPh21 salary calculations.
 * **📊 Salary Structure:** Wildcard company ('%') functionality, automatic GL account mappings.
 * **👥 Employee & Auth Hooks:** Robust employee data validation, Indonesian region-specific user session integration.
