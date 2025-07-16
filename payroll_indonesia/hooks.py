@@ -57,6 +57,9 @@ doc_events = {
         "after_insert": "payroll_indonesia.fixtures.setup.setup_company_accounts",
         "on_update": "payroll_indonesia.fixtures.setup.setup_company_accounts",
     },
+    "Payroll Entry": {
+        "on_submit": "payroll_indonesia.override.payroll_entry_functions.create_salary_slips",
+    },
     "Payment Entry": {
         "on_submit": "payroll_indonesia.payroll_indonesia.doctype.bpjs_payment_summary.payment_hooks.on_payment_entry_submit",
     },

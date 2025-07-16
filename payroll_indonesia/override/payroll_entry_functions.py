@@ -302,3 +302,35 @@ def _validate_component_tax_effects(doc):
     
     except Exception as e:
         logger.exception(f"Error validating component tax effects: {str(e)}")
+
+
+def create_salary_slips(doc, method=None, enqueue=False):
+    """Create and submit salary slips for the given payroll entry."""
+    try:
+        from hrms.payroll.doctype.payroll_entry.payroll_entry import (
+            make_salary_slips,
+            enqueue_make_salary_slips,
+        )
+    except Exception:
+        logger.exception("Could not import salary slip creation utilities")
+        return []
+
+    try:
+        create_fn = enqueue_make_salary_slips if enqueue else make_salary_slips
+        slip_names = create_fn(doc.name)
+        if isinstance(slip_names, dict):
+            slip_names = slip_names.get("salary_slips") or []
+
+        for name in slip_names:
+            try:
+                slip = frappe.get_doc("Salary Slip", name)
+                if getattr(slip, "docstatus", 0) == 0 and hasattr(slip, "submit"):
+                    slip.submit()
+            except Exception:
+                logger.exception(f"Failed to submit Salary Slip {name}")
+
+        return slip_names
+
+    except Exception as e:
+        logger.exception(f"Error creating salary slips: {str(e)}")
+        return []
