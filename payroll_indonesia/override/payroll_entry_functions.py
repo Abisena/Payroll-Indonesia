@@ -308,12 +308,28 @@ def create_salary_slips(doc, method=None, enqueue=False):
     """Create and submit salary slips for the given payroll entry."""
     try:
         from hrms.payroll.doctype.payroll_entry.payroll_entry import (
-            make_salary_slips,
-            enqueue_make_salary_slips,
+            make_salary_slips as _make_salary_slips,
+            enqueue_make_salary_slips as _enqueue_make_salary_slips,
+        )
+        logger.debug(
+            "Using hrms.payroll.doctype.payroll_entry.payroll_entry for salary slip utilities"
         )
     except Exception:
-        logger.exception("Could not import salary slip creation utilities")
-        return []
+        try:
+            from erpnext.payroll.doctype.payroll_entry.payroll_entry import (
+                make_salary_slips as _make_salary_slips,
+                enqueue_make_salary_slips as _enqueue_make_salary_slips,
+            )
+            logger.debug(
+                "Using erpnext.payroll.doctype.payroll_entry.payroll_entry "
+                "for salary slip utilities"
+            )
+        except Exception:
+            logger.exception("Could not import salary slip creation utilities")
+            return []
+
+    make_salary_slips = _make_salary_slips
+    enqueue_make_salary_slips = _enqueue_make_salary_slips
 
     try:
         create_fn = enqueue_make_salary_slips if enqueue else make_salary_slips
