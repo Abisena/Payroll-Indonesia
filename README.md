@@ -92,6 +92,28 @@ Each Payroll Entry in ERPNext must belong to a defined **Payroll Period**. If yo
 
 For more details, see the [Payroll Period documentation](https://docs.erpnext.com/docs/user/manual/en/payroll/payroll-period).
 
+## 📥 Automatic Salary Slip Submission
+
+When you submit a **Payroll Entry**, the module automatically creates and submits
+Salary Slips for all included employees. This automation uses the hooks and
+class overrides defined in `payroll_indonesia/hooks.py`. Ensure the following
+entries are active so Salary Slips are generated correctly:
+
+```python
+doc_events = {
+    "Payroll Entry": {
+        "on_submit": "payroll_indonesia.override.payroll_entry_functions.create_salary_slips",
+    },
+}
+
+override_doctype_class = {
+    "Payroll Entry": "payroll_indonesia.override.payroll_entry.CustomPayrollEntry",
+}
+```
+
+These settings are installed by default, but verify they remain enabled if you
+customize your hooks.
+
 ## 🔄 Optimization and Revision
 
 The Payroll Indonesia module is modularly optimized to provide top performance and maintain a clear, integrated code structure across modules such as BPJS Settings, PPh21 Settings, Salary Slip, Employee Tax Summary, and Payroll Indonesia Settings. All configurations adhere to current standards, ensuring accuracy in calculations and validations.
