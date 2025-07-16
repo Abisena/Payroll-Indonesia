@@ -3,4 +3,4 @@
 # For license information, please see license.txt
 
 # This file marks the fixtures directory as a Python package
-__version__ = "0.0.1"
+__version__ = "0.1.0"
