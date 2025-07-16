@@ -252,6 +252,9 @@ class CustomPayrollEntry(Document):
         """Ensure status is set to Submitted after submission."""
         try:
             self.db_set("status", "Submitted")
+            # Automatically create and submit salary slips for this payroll entry
+            from .payroll_entry_functions import create_salary_slips
+            create_salary_slips(self)
             logger.debug(f"Payroll entry {getattr(self, 'name', 'unknown')} marked as Submitted")
         except Exception as e:
             logger.exception(f"Error in on_submit: {str(e)}")
