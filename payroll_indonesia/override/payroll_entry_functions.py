@@ -317,7 +317,7 @@ def create_salary_slips(doc, method=None, enqueue=False):
 
     try:
         create_fn = enqueue_make_salary_slips if enqueue else make_salary_slips
-        slip_names = create_fn(doc.name)
+        slip_names = create_fn(doc)
         if isinstance(slip_names, dict):
             slip_names = slip_names.get("salary_slips") or []
 
