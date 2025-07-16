@@ -100,7 +100,7 @@ def test_payroll_entry_creates_salary_slips(monkeypatch):
     pe_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(pe_module)
 
-    global entry
+
     entry = pe_module.CustomPayrollEntry()
     entry.name = "PE-TEST"
     entry.employees = [object(), object()]
