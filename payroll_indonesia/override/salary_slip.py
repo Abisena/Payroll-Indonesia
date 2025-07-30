@@ -14,6 +14,7 @@ except Exception:
     SalarySlip = object
 
 import frappe
+from frappe.utils import flt
 from frappe.utils.safe_exec import safe_eval
 import json
 
@@ -179,6 +180,49 @@ class CustomSalarySlip(SalarySlip):
                 )
         except Exception as e:
             frappe.logger().error(f"Failed to sync Annual Payroll History: {e}")
+            
+    def compute_income_tax(self):
+        # hitung PPh 21 → tax_amount
+        result = calculate_pph21_TER(self.get_employee_doc(), self.as_dict())
+        tax_amount = result["pph21"]
+
+        # simpan info & sisipkan baris deduction
+        self.pph21_info = frappe.as_json(result)
+        self._set_pph21_deduction_row(tax_amount)
+
+        return tax_amount
+
+    # ↓↓↓  **LETakkan di bawah compute_income_tax (atau di mana pun di area ini)** ↓↓↓
+    def _set_pph21_deduction_row(self, pph21_amount: float):
+        """
+        Sisipkan / perbarui baris PPh 21 di tab *Deductions*.
+        Dipanggil dari compute_income_tax().
+        """
+        if not pph21_amount:
+            return
+
+        # Cari baris yg sudah ada
+        for row in self.get("deductions", []):
+            if row.salary_component == "PPh 21":
+                row.amount = pph21_amount
+                break
+        else:
+            # Belum ada – tambahkan
+            self.append(
+                "deductions",
+                {
+                    "doctype": "Salary Detail",
+                    "salary_component": "PPh 21",
+                    "amount": pph21_amount,
+                    # tambahkan flag lain jika schema‑nya ada
+                    "is_income_tax_component": 1,
+                    "is_tax_component": 1,
+                },
+            )
+
+        # refresh total & net pay
+        self.total_deduction = sum(r.amount for r in self.deductions)
+        self.net_pay = (self.gross_pay or 0) - self.total_deduction
 
     def on_cancel(self):
         """When slip is cancelled, remove related row from Annual Payroll History."""

@@ -4,6 +4,8 @@ from frappe.utils import flt
 
 SETTINGS_DOCTYPE = "Payroll Indonesia Settings"
 SETTINGS_NAME = "Payroll Indonesia Settings"
+DEFAULT_BIAYA_JABATAN_RATE = 5.0            # %
+DEFAULT_BIAYA_JABATAN_CAP_YEARLY = 6_000_000.0  # rupiah
 
 def get_settings():
     """
@@ -61,7 +63,6 @@ def get_ptkp_amount(employee_doc) -> float:
     """
     Return PTKP amount for employee_doc using field tax_status.
     """
-    
     if hasattr(employee_doc, "tax_status"):
         tax_status = getattr(employee_doc, "tax_status")
     elif isinstance(employee_doc, dict):
@@ -76,14 +77,12 @@ def get_ter_code(employee_doc) -> str | None:
     Get TER code for employee from TER Mapping Table based on tax_status.
     Returns None if not found.
     """
-
     if hasattr(employee_doc, "tax_status"):
         tax_status = getattr(employee_doc, "tax_status")
     elif isinstance(employee_doc, dict):
         tax_status = employee_doc.get("tax_status")
     else:
         tax_status = None
-        
     if not tax_status:
         frappe.logger().warning("TER code lookup: Employee tax_status is empty.")
         return None
@@ -129,6 +128,20 @@ def get_ter_rate(ter_code: str, monthly_income: float) -> float:
     raise ValidationError(
         f"TER Bracket Table: No bracket match for ter_code '{ter_code}' and monthly_income {monthly_income}."
     )
+    
+def get_biaya_jabatan_rate() -> float:
+    """Persentase biaya jabatan (%)"""
+    return flt(get_value("biaya_jabatan_rate", DEFAULT_BIAYA_JABATAN_RATE))
+
+def get_biaya_jabatan_cap_yearly() -> float:
+    """Batas biaya jabatan per tahun (Rp)"""
+    return flt(get_value("biaya_jabatan_cap_yearly",
+                         DEFAULT_BIAYA_JABATAN_CAP_YEARLY))
+
+def get_biaya_jabatan_cap_monthly() -> float:
+    """Hitung batas biaya jabatan per bulan = cap tahunan / 12"""
+    return get_biaya_jabatan_cap_yearly() / 12.0
+
 
 def is_auto_queue_salary_slip() -> bool:
     """
