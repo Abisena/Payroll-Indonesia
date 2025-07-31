@@ -5,6 +5,7 @@ from payroll_indonesia.utils import round_half_up, sum_bruto_earnings
 from payroll_indonesia.config import (
     get_biaya_jabatan_rate,
     get_biaya_jabatan_cap_monthly,
+    get_ptkp_amount,
     get_ter_code,
     get_ter_rate,
 )
@@ -69,9 +70,10 @@ def get_biaya_jabatan_from_component(salary_slip):
 
 def calculate_pph21_TER(employee_doc, salary_slip):
     # 1) Validasi employment type
-    emp_type = employee_doc["employment_type"] if isinstance(employee_doc, dict) \
-               else employee_doc.employment_type
-    if emp_type == " ":
+    emp_type = (
+        employee_doc["employment_type"] if isinstance(employee_doc, dict) else employee_doc.employment_type
+    )
+    if emp_type != "Full-time":
         return {
             "employment_type_checked": False,
             "pph21": 0.0,
@@ -81,28 +83,39 @@ def calculate_pph21_TER(employee_doc, salary_slip):
     # 2) Hitung bruto
     bruto = sum_bruto_earnings(salary_slip)
 
-    # 3) Biaya jabatan
-    bj_rate = get_biaya_jabatan_rate()               # 5 %
-    bj_cap  = get_biaya_jabatan_cap_monthly()        # 500 000
+    # 3) Pengurang netto (BPJS, dll)
+    pengurang_netto = sum_pengurang_netto(salary_slip)
+
+    # 4) Biaya jabatan
+    bj_rate = get_biaya_jabatan_rate()  # 5 %
+    bj_cap = get_biaya_jabatan_cap_monthly()  # 500 000
     try:
         from payroll_indonesia.utils import get_biaya_jabatan_from_component
-        biaya_jabatan = get_biaya_jabatan_from_component(salary_slip) or \
-                        min(bruto * bj_rate / 100, bj_cap)
+        biaya_jabatan = get_biaya_jabatan_from_component(salary_slip) or 0.0
     except ImportError:
-        biaya_jabatan = min(bruto * bj_rate / 100, bj_cap)
+        biaya_jabatan = 0.0
 
-    # 4) Taxable income dan tarif TER
-    taxable_income = bruto - biaya_jabatan
+    # 5) PTKP bulanan dan PKP
+    try:
+        ptkp_month = get_ptkp_amount(employee_doc) / 12.0
+    except ValidationError as e:
+        frappe.logger().warning(str(e))
+        ptkp_month = 0.0
+
+    pkp = max(bruto - pengurang_netto - biaya_jabatan - ptkp_month, 0)
+
+    # 6) Tarif TER
     ter_code = get_ter_code(employee_doc)
-    rate = get_ter_rate(ter_code, taxable_income)
+    rate = get_ter_rate(ter_code, pkp)
 
-    # 5) PPh21
-    pph21 = round_half_up(taxable_income * rate / 100)
+    # 7) PPh21
+    pph21 = round_half_up(pkp * rate / 100)
 
     return {
         "bruto": bruto,
+        "pengurang_netto": pengurang_netto,
         "biaya_jabatan": biaya_jabatan,
-        "taxable_income": taxable_income,
+        "taxable_income": pkp,
         "rate": rate,
         "pph21": pph21,
         "employment_type_checked": True,
