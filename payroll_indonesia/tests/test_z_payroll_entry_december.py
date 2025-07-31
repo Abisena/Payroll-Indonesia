@@ -72,6 +72,11 @@ def test_create_slip_in_december_mode(monkeypatch):
             self.gross_pay = 0
 
     monkeypatch.setattr(pph21_ter_december, "calculate_pph21_TER_december", fake_calc_pph21_december)
+    monkeypatch.setattr(
+        salary_slip_module.pph21_ter_december,
+        "calculate_pph21_TER_december",
+        fake_calc_pph21_december,
+    )
     monkeypatch.setattr(CustomSalarySlip, "db_set", db_set, raising=False)
     monkeypatch.setattr(CustomSalarySlip, "save", save, raising=False)
     monkeypatch.setattr(CustomSalarySlip, "append", append, raising=False)
