@@ -48,9 +48,41 @@ def test_create_slip_in_december_mode(monkeypatch):
     CustomSalarySlip = salary_slip_module.CustomSalarySlip
     pph21_ter_december = importlib.import_module("payroll_indonesia.config.pph21_ter_december")
 
+    # Avoid DB lookup for tax slabs/PTKP
+    pph21_ter_december.config.get_value = lambda *args, **kwargs: None
+    monkeypatch.setattr(pph21_ter_december, "get_ptkp_amount", lambda emp: 54_000_000)
+
+    slip_template = {
+        "employee": {"employment_type": "Full-time", "tax_status": "TK/0"},
+        "earnings": [
+            {
+                "amount": 12_000_000,
+                "is_tax_applicable": 1,
+                "do_not_include_in_total": 0,
+                "statistical_component": 0,
+                "exempted_from_income_tax": 0,
+            }
+        ],
+        "deductions": [
+            {
+                "salary_component": "BPJS",
+                "amount": 480_000,
+                "is_income_tax_component": 1,
+                "do_not_include_in_total": 0,
+                "statistical_component": 0,
+            },
+            {
+                "salary_component": "Biaya Jabatan",
+                "amount": 500_000,
+                "is_income_tax_component": 1,
+                "do_not_include_in_total": 0,
+                "statistical_component": 0,
+            },
+        ],
+    }
+    annual_slips = [slip_template] * 12
+
     # --- Monkeypatch helpers ---------------------------------------------
-    def fake_calc_pph21_december(employee_doc, slips, pph21_paid_jan_nov=0):
-        return {"pph21_month": 1500, "pph21_annual": 18000, "pkp_annual": 100000}
 
     def db_set(self, field, value):
         setattr(self, field, value)
@@ -71,7 +103,21 @@ def test_create_slip_in_december_mode(monkeypatch):
         if not hasattr(self, "gross_pay"):
             self.gross_pay = 0
 
-    monkeypatch.setattr(pph21_ter_december, "calculate_pph21_TER_december", fake_calc_pph21_december)
+    def calc_dec(self):
+        employee_doc = self.get_employee_doc()
+        slip_data = {
+            "earnings": getattr(self, "earnings", []),
+            "deductions": getattr(self, "deductions", []),
+        }
+        result = pph21_ter_december.calculate_pph21_TER_december(
+            employee_doc, annual_slips, 0
+        )
+        tax_amount = flt(result.get("pph21_month", 0.0))
+        self.pph21_info = json.dumps(result)
+        self.tax = tax_amount
+        self.tax_type = "DECEMBER"
+        return tax_amount
+
     monkeypatch.setattr(CustomSalarySlip, "db_set", db_set, raising=False)
     monkeypatch.setattr(CustomSalarySlip, "save", save, raising=False)
     monkeypatch.setattr(CustomSalarySlip, "append", append, raising=False)
@@ -82,31 +128,11 @@ def test_create_slip_in_december_mode(monkeypatch):
         raising=False,
     )
     monkeypatch.setattr(CustomSalarySlip, "__init__", _init, raising=False)
+    monkeypatch.setattr(CustomSalarySlip, "calculate_income_tax_december", calc_dec, raising=False)
 
     class DummyBase:
         def create_salary_slips(self):
-            slip = {
-                "employee": {"employment_type": "Full-time", "tax_status": "TK/0"},
-                "earnings": [
-                    {
-                        "amount": 1000,
-                        "is_tax_applicable": 1,
-                        "do_not_include_in_total": 0,
-                        "statistical_component": 0,
-                        "exempted_from_income_tax": 0,
-                    }
-                ],
-                "deductions": [
-                    {
-                        "salary_component": "BPJS",
-                        "amount": 100,
-                        "is_income_tax_component": 1,
-                        "do_not_include_in_total": 0,
-                        "statistical_component": 0,
-                    }
-                ],
-            }
-            return [slip]
+            return [slip_template]
 
     class TestPayrollEntry(payroll_entry.CustomPayrollEntry, DummyBase):
         pass
@@ -120,7 +146,10 @@ def test_create_slip_in_december_mode(monkeypatch):
     slip = slips[0]
     assert slip["tax_type"] == "DECEMBER"
     info = json.loads(slip["pph21_info"])
-    assert "pkp_annual" in info and "pph21_month" in info
+    assert info["pkp_annual"] == 78_240_000
+    assert info["pph21_annual"] == 5_736_000
+    assert info["pph21_month"] == 5_736_000
+    assert slip["tax"] == 5_736_000
 
     # Cleanup so other tests can import fresh modules
     for mod in [
