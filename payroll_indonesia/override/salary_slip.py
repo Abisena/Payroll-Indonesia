@@ -81,17 +81,132 @@ class CustomSalarySlip(SalarySlip):
         self.update_pph21_row(tax_amount)
         return tax_amount
 
+    def _gather_salary_slips_this_year(self, employee_name, fiscal_year):
+        """Return list of salary slip dicts and total PPh21 Jan-Nov."""
+        slips = []
+        pph21_paid_jan_nov = 0.0
+
+        if not employee_name or not fiscal_year:
+            return slips, pph21_paid_jan_nov
+
+        # First try Annual Payroll History
+        try:
+            names = frappe.get_all(
+                "Annual Payroll History",
+                filters={"employee": employee_name, "fiscal_year": fiscal_year},
+                pluck="name",
+            )
+        except Exception:
+            names = []
+
+        if names:
+            try:
+                history = frappe.get_doc("Annual Payroll History", names[0])
+                for row in history.get("monthly_details", []):
+                    bulan = getattr(row, "bulan", None) or row.get("bulan")
+                    bruto = getattr(row, "bruto", None) or row.get("bruto", 0)
+                    pengurang = getattr(row, "pengurang_netto", None) or row.get(
+                        "pengurang_netto", 0
+                    )
+                    bj = getattr(row, "biaya_jabatan", None) or row.get(
+                        "biaya_jabatan", 0
+                    )
+                    pph21 = getattr(row, "pph21", None) or row.get("pph21", 0)
+                    slip_dict = {
+                        "earnings": [
+                            {
+                                "amount": bruto,
+                                "is_tax_applicable": 1,
+                                "do_not_include_in_total": 0,
+                                "statistical_component": 0,
+                                "exempted_from_income_tax": 0,
+                            }
+                        ],
+                        "deductions": [
+                            {
+                                "salary_component": "Pengurang Netto",
+                                "amount": pengurang,
+                                "is_income_tax_component": 1,
+                                "do_not_include_in_total": 0,
+                                "statistical_component": 0,
+                            },
+                            {
+                                "salary_component": "Biaya Jabatan",
+                                "amount": bj,
+                                "is_income_tax_component": 1,
+                                "do_not_include_in_total": 0,
+                                "statistical_component": 0,
+                            },
+                        ],
+                    }
+                    slips.append(slip_dict)
+                    if bulan and int(bulan) < 12:
+                        pph21_paid_jan_nov += flt(pph21)
+                return slips, pph21_paid_jan_nov
+            except Exception:
+                pass
+
+        # Fallback to Salary Slip query
+        try:
+            names = frappe.get_all(
+                "Salary Slip",
+                filters={"employee": employee_name, "fiscal_year": fiscal_year},
+                pluck="name",
+            )
+        except Exception:
+            names = []
+
+        for name in names:
+            if getattr(self, "name", None) and name == self.name:
+                continue
+            try:
+                slip_doc = frappe.get_doc("Salary Slip", name)
+                month = (
+                    getattr(slip_doc, "month", None)
+                    or getattr(slip_doc, "bulan", None)
+                    or slip_doc.get("month")
+                    or slip_doc.get("bulan")
+                )
+                slips.append(
+                    {
+                        "earnings": slip_doc.get("earnings", []),
+                        "deductions": slip_doc.get("deductions", []),
+                    }
+                )
+                if month and int(month) < 12:
+                    pph21_paid_jan_nov += flt(
+                        getattr(slip_doc, "tax", slip_doc.get("tax", 0))
+                    )
+            except Exception:
+                continue
+
+        return slips, pph21_paid_jan_nov
+
     def calculate_income_tax_december(self):
         """Calculate annual progressive PPh21 for December."""
         employee_doc = self.get_employee_doc()
+
+        fiscal_year = getattr(self, "fiscal_year", None) or str(
+            getattr(self, "start_date", "")
+        )[:4]
+
+        employee_name = (
+            employee_doc.get("name") if isinstance(employee_doc, dict) else getattr(employee_doc, "name", None)
+        )
+
+        slips, pph21_paid_jan_nov = self._gather_salary_slips_this_year(
+            employee_name, fiscal_year
+        )
 
         slip_data = {
             "earnings": getattr(self, "earnings", []),
             "deductions": getattr(self, "deductions", []),
         }
 
+        slips.append(slip_data)
+
         result = pph21_ter_december.calculate_pph21_TER_december(
-            employee_doc, [slip_data]
+            employee_doc, slips, pph21_paid_jan_nov
         )
         tax_amount = flt(result.get("pph21_month", 0.0))
 

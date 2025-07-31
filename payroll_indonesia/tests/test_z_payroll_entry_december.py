@@ -103,21 +103,13 @@ def test_create_slip_in_december_mode(monkeypatch):
         if not hasattr(self, "gross_pay"):
             self.gross_pay = 0
 
-    def calc_dec(self):
-        employee_doc = self.get_employee_doc()
-        slip_data = {
-            "earnings": getattr(self, "earnings", []),
-            "deductions": getattr(self, "deductions", []),
-        }
-        result = pph21_ter_december.calculate_pph21_TER_december(
-            employee_doc, annual_slips, 0
-        )
-        tax_amount = flt(result.get("pph21_month", 0.0))
-        self.pph21_info = json.dumps(result)
-        self.tax = tax_amount
-        self.tax_type = "DECEMBER"
-        return tax_amount
 
+    monkeypatch.setattr(pph21_ter_december, "calculate_pph21_TER_december", fake_calc_pph21_december)
+    monkeypatch.setattr(
+        salary_slip_module.pph21_ter_december,
+        "calculate_pph21_TER_december",
+        fake_calc_pph21_december,
+    )
     monkeypatch.setattr(CustomSalarySlip, "db_set", db_set, raising=False)
     monkeypatch.setattr(CustomSalarySlip, "save", save, raising=False)
     monkeypatch.setattr(CustomSalarySlip, "append", append, raising=False)
