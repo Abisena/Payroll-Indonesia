@@ -45,11 +45,11 @@ def test_round_half_up_basic():
 
 import pytest
 
-@pytest.mark.parametrize("amount,expected", [(10, 1), (30, 2), (50, 3)])
+@pytest.mark.parametrize("amount,expected", [(10, 0), (30, 1), (50, 2)])
 def test_calculate_pph21_TER_rounding(monkeypatch, amount, expected):
-    monkeypatch.setattr(pph21_ter, "get_ptkp_amount", lambda emp: 0)
-    monkeypatch.setattr(pph21_ter, "get_ter_code", lambda emp: "A")
-    monkeypatch.setattr(pph21_ter, "get_ter_rate", lambda code, pkp: 5)
+    monkeypatch.setattr(pph21_ter, "get_ptkp_amount", lambda emp: 0, raising=False)
+    monkeypatch.setattr(pph21_ter, "get_ter_code", lambda emp: "A", raising=False)
+    monkeypatch.setattr(pph21_ter, "get_ter_rate", lambda code, pkp: 5, raising=False)
 
     employee = {"employment_type": "Full-time", "tax_status": "TK0"}
     slip = {

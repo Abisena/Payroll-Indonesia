@@ -135,8 +135,9 @@ def get_biaya_jabatan_rate() -> float:
 
 def get_biaya_jabatan_cap_yearly() -> float:
     """Batas biaya jabatan per tahun (Rp)"""
-    return flt(get_value("biaya_jabatan_cap_yearly",
-                         DEFAULT_BIAYA_JABATAN_CAP_YEARLY))
+    return flt(
+        get_value("biaya_jabatan_cap", DEFAULT_BIAYA_JABATAN_CAP_YEARLY)
+    )
 
 def get_biaya_jabatan_cap_monthly() -> float:
     """Hitung batas biaya jabatan per bulan = cap tahunan / 12"""

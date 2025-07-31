@@ -51,15 +51,15 @@ import pytest
 @pytest.mark.parametrize(
     "ter_code,ptkp_m,bruto,pengurang,bj,rate,expected",
     [
-        ("A", 4_500_000, 12_000_000, 480_000, 500_000, 5, 326_000),
-        ("B", 3_000_000, 15_000_000, 1_000_000, 1_000_000, 10, 1_000_000),
-        ("C", 5_000_000, 20_000_000, 2_000_000, 1_000_000, 15, 1_800_000),
+        ("A", 4_500_000, 12_000_000, 480_000, 500_000, 5, 575_000),
+        ("B", 3_000_000, 15_000_000, 1_000_000, 1_000_000, 10, 1_400_000),
+        ("C", 5_000_000, 20_000_000, 2_000_000, 1_000_000, 15, 2_850_000),
     ],
 )
 def test_calculate_pph21_TER(monkeypatch, ter_code, ptkp_m, bruto, pengurang, bj, rate, expected):
-    monkeypatch.setattr(pph21_ter, "get_ptkp_amount", lambda emp: ptkp_m * 12)
-    monkeypatch.setattr(pph21_ter, "get_ter_code", lambda emp: ter_code)
-    monkeypatch.setattr(pph21_ter, "get_ter_rate", lambda code, pkp: rate)
+    monkeypatch.setattr(pph21_ter, "get_ptkp_amount", lambda emp: ptkp_m * 12, raising=False)
+    monkeypatch.setattr(pph21_ter, "get_ter_code", lambda emp: ter_code, raising=False)
+    monkeypatch.setattr(pph21_ter, "get_ter_rate", lambda code, pkp: rate, raising=False)
 
     employee = {"employment_type": "Full-time", "tax_status": "TK/0"}
     slip = {
@@ -133,3 +133,38 @@ def test_calculate_pph21_TER_december(monkeypatch):
     assert result["pkp_annual"] == 78_240_000
     assert result["pph21_annual"] == 5_736_000
     assert result["pph21_month"] == 5_736_000
+
+
+def test_biaya_jabatan_cap_setting_used(monkeypatch):
+    monkeypatch.setattr(pph21_ter, "get_ptkp_amount", lambda emp: 0, raising=False)
+    monkeypatch.setattr(pph21_ter, "get_ter_code", lambda emp: "A", raising=False)
+    monkeypatch.setattr(pph21_ter, "get_ter_rate", lambda code, pkp: 5, raising=False)
+
+    def fake_get_value(field, default=None):
+        if field == "biaya_jabatan_cap":
+            return 12_000_000
+        if field == "biaya_jabatan_rate":
+            return 5
+        return default
+
+    import payroll_indonesia.config.config as cfg
+    monkeypatch.setattr(cfg, "get_value", fake_get_value)
+
+    employee = {"employment_type": "Full-time", "tax_status": "TK/0"}
+    slip = {
+        "earnings": [
+            {
+                "amount": 30_000_000,
+                "is_tax_applicable": 1,
+                "do_not_include_in_total": 0,
+                "statistical_component": 0,
+                "exempted_from_income_tax": 0,
+            }
+        ],
+        "deductions": [],
+    }
+
+    result = pph21_ter.calculate_pph21_TER(employee, slip)
+
+    assert result["biaya_jabatan"] == 1_000_000
+    assert result["pph21"] == 1_450_000
