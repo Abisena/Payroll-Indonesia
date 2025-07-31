@@ -21,6 +21,7 @@ import json
 from payroll_indonesia.config import pph21_ter, pph21_ter_december
 from payroll_indonesia.utils import sync_annual_payroll_history
 from payroll_indonesia import _patch_salary_slip_globals
+from payroll_indonesia.config.pph21_ter import calculate_pph21_TER
 
 
 class CustomSalarySlip(SalarySlip):
@@ -182,45 +183,45 @@ class CustomSalarySlip(SalarySlip):
             frappe.logger().error(f"Failed to sync Annual Payroll History: {e}")
             
     def compute_income_tax(self):
-        # hitung PPh 21 → tax_amount
+        """
+        Override bawaan HRMS. Dipanggil otomatis oleh calculate_net_pay().
+        – Hitung PPh 21 TER (atau progresif Desember jika Anda aktifkan logic lain)
+        – Sisipkan / perbarui baris "PPh 21" di tab Deductions
+        – Simpan info detail ke field JSON (pph21_info) jika diperlukan
+        """
+        # --- Hitung PPh 21 TER ---
         result = calculate_pph21_TER(self.get_employee_doc(), self.as_dict())
         tax_amount = result["pph21"]
 
-        # simpan info & sisipkan baris deduction
+        # --- Simpan info untuk debugging / report ---
         self.pph21_info = frappe.as_json(result)
+
+        # --- Pastikan baris deduction ada ---
         self._set_pph21_deduction_row(tax_amount)
 
+        # --- Kembalikan ke HRMS core ---
         return tax_amount
 
-    # ↓↓↓  **LETakkan di bawah compute_income_tax (atau di mana pun di area ini)** ↓↓↓
+    # method _set_pph21_deduction_row harus ada di class ini
     def _set_pph21_deduction_row(self, pph21_amount: float):
-        """
-        Sisipkan / perbarui baris PPh 21 di tab *Deductions*.
-        Dipanggil dari compute_income_tax().
-        """
         if not pph21_amount:
             return
-
-        # Cari baris yg sudah ada
         for row in self.get("deductions", []):
             if row.salary_component == "PPh 21":
                 row.amount = pph21_amount
                 break
         else:
-            # Belum ada – tambahkan
             self.append(
                 "deductions",
                 {
                     "doctype": "Salary Detail",
                     "salary_component": "PPh 21",
                     "amount": pph21_amount,
-                    # tambahkan flag lain jika schema‑nya ada
                     "is_income_tax_component": 1,
                     "is_tax_component": 1,
                 },
             )
-
-        # refresh total & net pay
+        # refresh totals
         self.total_deduction = sum(r.amount for r in self.deductions)
         self.net_pay = (self.gross_pay or 0) - self.total_deduction
 
