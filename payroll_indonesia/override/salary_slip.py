@@ -196,6 +196,10 @@ class CustomSalarySlip(SalarySlip):
         # --- Simpan info untuk debugging / report ---
         self.pph21_info = frappe.as_json(result)
 
+        # --- Set tax fields for HRMS compatibility ---
+        self.tax = tax_amount
+        self.tax_type = "TER"
+
         # --- Pastikan baris deduction ada ---
         self._set_pph21_deduction_row(tax_amount)
 

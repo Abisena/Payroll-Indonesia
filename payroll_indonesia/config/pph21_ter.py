@@ -7,6 +7,7 @@ from payroll_indonesia.config import (
     get_biaya_jabatan_cap_monthly,
     get_ter_code,
     get_ter_rate,
+    get_ptkp_amount,
 )
 
 # from payroll_indonesia.utils import round_half_up
@@ -81,28 +82,37 @@ def calculate_pph21_TER(employee_doc, salary_slip):
     # 2) Hitung bruto
     bruto = sum_bruto_earnings(salary_slip)
 
-    # 3) Biaya jabatan
-    bj_rate = get_biaya_jabatan_rate()               # 5 %
-    bj_cap  = get_biaya_jabatan_cap_monthly()        # 500 000
+    # 3) Deductions
+    pengurang_netto = sum_pengurang_netto(salary_slip)
     try:
         from payroll_indonesia.utils import get_biaya_jabatan_from_component
-        biaya_jabatan = get_biaya_jabatan_from_component(salary_slip) or \
-                        min(bruto * bj_rate / 100, bj_cap)
+        biaya_jabatan = get_biaya_jabatan_from_component(salary_slip) or 0.0
     except ImportError:
-        biaya_jabatan = min(bruto * bj_rate / 100, bj_cap)
+        biaya_jabatan = 0.0
 
-    # 4) Taxable income dan tarif TER
-    taxable_income = bruto - biaya_jabatan
+    # 4) PKP bulanan
+    try:
+        ptkp_annual = get_ptkp_amount(employee_doc)
+    except ValidationError as e:
+        frappe.logger().warning(str(e))
+        ptkp_annual = 0.0
+    pkp = bruto - pengurang_netto - biaya_jabatan - (ptkp_annual / 12.0)
+    pkp = max(pkp, 0)
+
+    # 5) Tarif TER
     ter_code = get_ter_code(employee_doc)
-    rate = get_ter_rate(ter_code, taxable_income)
+    rate = get_ter_rate(ter_code, bruto)
 
-    # 5) PPh21
-    pph21 = round_half_up(taxable_income * rate / 100)
+    # 6) PPh21
+    pph21 = round_half_up(pkp * rate / 100)
 
     return {
         "bruto": bruto,
+        "pengurang_netto": pengurang_netto,
         "biaya_jabatan": biaya_jabatan,
-        "taxable_income": taxable_income,
+        "netto": bruto - pengurang_netto - biaya_jabatan,
+        "ptkp": ptkp_annual / 12.0,
+        "pkp": pkp,
         "rate": rate,
         "pph21": pph21,
         "employment_type_checked": True,
