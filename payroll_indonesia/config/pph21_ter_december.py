@@ -84,18 +84,6 @@ def get_biaya_jabatan_from_component(salary_slip):
             return flt(row.get("amount", 0))
     return 0.0
 
-def sum_total_actual_netto_this_year(employee_doc, salary_slips):
-    """
-    Sum all actual netto for all slips in the year.
-    Netto = bruto - pengurang_netto - biaya jabatan
-    """
-    total_netto = 0.0
-    for slip in salary_slips:
-        bruto = sum_bruto_earnings(slip)
-        pengurang_netto = sum_income_tax_deductions(slip)
-        biaya_jabatan = get_biaya_jabatan_from_component(slip)
-        total_netto += bruto - pengurang_netto - biaya_jabatan
-    return total_netto
 
 def calculate_pkp_annual(total_netto_actual, ptkp_annual):
     """
@@ -247,7 +235,6 @@ def calculate_pph21_TER_december_from_annual_payroll(annual_payroll_history, emp
     pengurang_netto_total = 0.0
     biaya_jabatan_total = 0.0
     netto_total = 0.0
-    pkp_total = 0.0
     pph21_paid_jan_nov = 0.0
 
     for row in child_table:
@@ -263,7 +250,6 @@ def calculate_pph21_TER_december_from_annual_payroll(annual_payroll_history, emp
         pengurang_netto_total += float(pengurang_netto or 0)
         biaya_jabatan_total += float(biaya_jabatan or 0)
         netto_total += float(netto or 0)
-        pkp_total += float(pkp or 0)
 
         # Jan–Nov only (bulan 1 s.d. 11)
         if bulan and int(bulan) < 12:
