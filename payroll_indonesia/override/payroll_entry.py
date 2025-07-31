@@ -53,6 +53,10 @@ class CustomPayrollEntry(PayrollEntry):
         for slip in slips:
             slip_obj = self._get_salary_slip_obj(slip)
             slip_obj.calculate_income_tax()
+            try:
+                slip_obj.save(ignore_permissions=True)
+            except Exception:
+                pass
             if isinstance(slip, dict):
                 slip["pph21_info"] = getattr(slip_obj, "pph21_info", {})
                 slip["tax"] = getattr(slip_obj, "tax", 0)
@@ -70,6 +74,10 @@ class CustomPayrollEntry(PayrollEntry):
         for slip in slips:
             slip_obj = self._get_salary_slip_obj(slip)
             slip_obj.calculate_income_tax()
+            try:
+                slip_obj.save(ignore_permissions=True)
+            except Exception:
+                pass
             if isinstance(slip, dict):
                 slip["pph21_info"] = getattr(slip_obj, "pph21_info", {})
                 slip["tax"] = getattr(slip_obj, "tax", 0)
