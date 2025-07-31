@@ -90,6 +90,10 @@ class CustomSalarySlip(SalarySlip):
             "pph21": tax_amount,
         }
 
+        # Simpan ke field yang ditampilkan pada UI Frappe
+        self.tax = tax_amount
+        self.tax_type = getattr(self, "tax_type", "TER") or "TER"
+
         # Update komponen PPh 21 di deductions
         self.set_income_tax_component(tax_amount)
 
@@ -198,6 +202,10 @@ class CustomSalarySlip(SalarySlip):
 
         # --- Pastikan baris deduction ada ---
         self._set_pph21_deduction_row(tax_amount)
+
+        # Simpan ke field standar Salary Slip
+        self.tax = tax_amount
+        self.tax_type = getattr(self, "tax_type", "TER") or "TER"
 
         # --- Kembalikan ke HRMS core ---
         return tax_amount

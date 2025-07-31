@@ -3,8 +3,7 @@ from frappe import ValidationError
 from frappe.utils import flt
 from payroll_indonesia.utils import round_half_up, sum_bruto_earnings
 from payroll_indonesia.config import (
-    get_biaya_jabatan_rate,
-    get_biaya_jabatan_cap_monthly,
+    get_ptkp_amount,
     get_ter_code,
     get_ter_rate,
 )
@@ -68,41 +67,58 @@ def get_biaya_jabatan_from_component(salary_slip):
     return 0.0
 
 def calculate_pph21_TER(employee_doc, salary_slip):
-    # 1) Validasi employment type
-    emp_type = employee_doc["employment_type"] if isinstance(employee_doc, dict) \
-               else employee_doc.employment_type
-    if emp_type == " ":
+    """Calculate monthly PPh21 using TER method."""
+
+    employment_type = (
+        getattr(employee_doc, "employment_type", None)
+        if hasattr(employee_doc, "employment_type")
+        else employee_doc.get("employment_type")
+    )
+    if employment_type != "Full-time":
         return {
-            "employment_type_checked": False,
+            "ptkp": 0.0,
+            "bruto": 0.0,
+            "pengurang_netto": 0.0,
+            "biaya_jabatan": 0.0,
+            "netto": 0.0,
+            "pkp": 0.0,
+            "rate": 0.0,
             "pph21": 0.0,
-            "message": "PPh21 TER hanya untuk Employment Type: Full-time",
+            "employment_type_checked": False,
+            "message": "PPh21 TER hanya dihitung untuk Employment Type: Full-time",
         }
 
-    # 2) Hitung bruto
-    bruto = sum_bruto_earnings(salary_slip)
-
-    # 3) Biaya jabatan
-    bj_rate = get_biaya_jabatan_rate()               # 5 %
-    bj_cap  = get_biaya_jabatan_cap_monthly()        # 500 000
     try:
-        from payroll_indonesia.utils import get_biaya_jabatan_from_component
-        biaya_jabatan = get_biaya_jabatan_from_component(salary_slip) or \
-                        min(bruto * bj_rate / 100, bj_cap)
-    except ImportError:
-        biaya_jabatan = min(bruto * bj_rate / 100, bj_cap)
+        ptkp = get_ptkp_amount(employee_doc) / 12
+    except ValidationError as e:
+        frappe.logger().warning(str(e))
+        ptkp = 0.0
 
-    # 4) Taxable income dan tarif TER
-    taxable_income = bruto - biaya_jabatan
+    bruto = sum_bruto_earnings(salary_slip)
+    pengurang_netto = sum_pengurang_netto(salary_slip)
+    biaya_jabatan = get_biaya_jabatan_from_component(salary_slip)
+
+    netto = bruto - pengurang_netto - biaya_jabatan
+    pkp = max(netto - ptkp, 0)
+
     ter_code = get_ter_code(employee_doc)
-    rate = get_ter_rate(ter_code, taxable_income)
+    try:
+        rate = get_ter_rate(ter_code, pkp)
+    except ValidationError as e:
+        frappe.logger().warning(str(e))
+        rate = 0.0
 
-    # 5) PPh21
-    pph21 = round_half_up(taxable_income * rate / 100)
+    frappe.logger().info(f"TER code: {ter_code}, rate: {rate}")
+
+    pph21 = round_half_up(pkp * (rate / 100))
 
     return {
+        "ptkp": ptkp,
         "bruto": bruto,
+        "pengurang_netto": pengurang_netto,
         "biaya_jabatan": biaya_jabatan,
-        "taxable_income": taxable_income,
+        "netto": netto,
+        "pkp": pkp,
         "rate": rate,
         "pph21": pph21,
         "employment_type_checked": True,
