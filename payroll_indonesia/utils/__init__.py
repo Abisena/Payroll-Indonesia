@@ -4,7 +4,12 @@ from decimal import Decimal, ROUND_HALF_UP
 
 from frappe.utils import flt
 
-__all__ = ["round_half_up", "sum_bruto_earnings", "get_biaya_jabatan_from_component"]
+__all__ = [
+    "round_half_up",
+    "sum_bruto_earnings",
+    "sum_pengurang_netto",
+    "get_biaya_jabatan_from_component",
+]
 
 
 def round_half_up(value: float) -> int:
@@ -32,6 +37,21 @@ def sum_bruto_earnings(salary_slip):
             and row.get("do_not_include_in_total", 0) == 0
             and row.get("statistical_component", 0) == 0
             and row.get("exempted_from_income_tax", 0) == 0
+        ):
+            total += flt(row.get("amount", 0))
+    return total
+
+
+def sum_pengurang_netto(salary_slip):
+    """Jumlahkan deduction yang mengurangi penghasilan netto."""
+    total = 0.0
+    for row in salary_slip.get("deductions", []):
+        if (
+            (row.get("is_income_tax_component", 0) == 1
+             or row.get("variable_based_on_taxable_salary", 0) == 1)
+            and row.get("do_not_include_in_total", 0) == 0
+            and row.get("statistical_component", 0) == 0
+            and "biaya jabatan" not in row.get("salary_component", "").lower()
         ):
             total += flt(row.get("amount", 0))
     return total
