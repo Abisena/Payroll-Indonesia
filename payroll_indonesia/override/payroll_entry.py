@@ -119,6 +119,11 @@ class CustomPayrollEntry(PayrollEntry):
             else:
                 slip_obj = CustomSalarySlip(**slip)
             return slip_obj
+        elif isinstance(slip, str):
+            try:
+                return frappe.get_doc("Salary Slip", slip)
+            except Exception:
+                return CustomSalarySlip(name=slip)
         else:
             return slip  # fallback
 
