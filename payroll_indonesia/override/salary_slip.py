@@ -182,48 +182,6 @@ class CustomSalarySlip(SalarySlip):
         except Exception as e:
             frappe.logger().error(f"Failed to sync Annual Payroll History: {e}")
             
-    def compute_income_tax(self):
-        """
-        Override bawaan HRMS. Dipanggil otomatis oleh calculate_net_pay().
-        – Hitung PPh 21 TER (atau progresif Desember jika Anda aktifkan logic lain)
-        – Sisipkan / perbarui baris "PPh 21" di tab Deductions
-        – Simpan info detail ke field JSON (pph21_info) jika diperlukan
-        """
-        # --- Hitung PPh 21 TER ---
-        result = calculate_pph21_TER(self.get_employee_doc(), self.as_dict())
-        tax_amount = result["pph21"]
-
-        # --- Simpan info untuk debugging / report ---
-        self.pph21_info = frappe.as_json(result)
-
-        # --- Pastikan baris deduction ada ---
-        self._set_pph21_deduction_row(tax_amount)
-
-        # --- Kembalikan ke HRMS core ---
-        return tax_amount
-
-    # method _set_pph21_deduction_row harus ada di class ini
-    def _set_pph21_deduction_row(self, pph21_amount: float):
-        if not pph21_amount:
-            return
-        for row in self.get("deductions", []):
-            if row.salary_component == "PPh 21":
-                row.amount = pph21_amount
-                break
-        else:
-            self.append(
-                "deductions",
-                {
-                    "doctype": "Salary Detail",
-                    "salary_component": "PPh 21",
-                    "amount": pph21_amount,
-                    "is_income_tax_component": 1,
-                    "is_tax_component": 1,
-                },
-            )
-        # refresh totals
-        self.total_deduction = sum(r.amount for r in self.deductions)
-        self.net_pay = (self.gross_pay or 0) - self.total_deduction
 
     def on_cancel(self):
         """When slip is cancelled, remove related row from Annual Payroll History."""
