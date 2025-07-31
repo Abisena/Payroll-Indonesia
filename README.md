@@ -30,6 +30,7 @@ Lihat [docs/payroll_indonesia_settings.md](docs/payroll_indonesia_settings.md) u
 - Tabel TER Bracket
 - Payroll Options (fallback income tax slab)
 - Formula helper untuk Salary Component
+- Opsi [Run Payroll Indonesia](docs/payroll_indonesia_settings.md#8-run-payroll-indonesia) & "Run Payroll Indonesia December"
 
 ---
 
