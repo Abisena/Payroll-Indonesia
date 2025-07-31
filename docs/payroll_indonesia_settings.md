@@ -88,3 +88,11 @@ min(base, get_bpjs_cap("bpjs_health_employer_cap")) * get_bpjs_rate("bpjs_health
 ```
 
 Fungsi `get_bpjs_cap()` dan `get_bpjs_rate()` tersedia otomatis di formula Salary Component setelah modul ini terpasang.
+
+## 8. Run Payroll Indonesia
+
+Opsi ini terdapat pada **Payroll Entry** dan berfungsi mengaktifkan perhitungan PPh21 otomatis setiap kali slip dibuat. Saat dicentang, sistem menggunakan metode TER bulanan melalui `calculate_pph21_TER`.
+
+### Run Payroll Indonesia December
+
+Centang ini apabila periode payroll dimulai pada bulan **Desember**. Field hanya muncul jika `start_date` berada di bulan Desember. Ketika diaktifkan, salary slip akan menghitung pajak akhir tahun menggunakan `calculate_pph21_TER_december`.
