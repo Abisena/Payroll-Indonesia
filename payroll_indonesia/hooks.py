@@ -28,7 +28,8 @@ app_license = "MIT"
 
 # include js in doctype views
 doctype_js = {
-    "Annual Payroll History": "payroll_indonesia/payroll_indonesia/doctype/annual_payroll_history/annual_payroll_history.js"
+    "Annual Payroll History": "payroll_indonesia/payroll_indonesia/doctype/annual_payroll_history/annual_payroll_history.js",
+    "Payroll Entry": "payroll_indonesia/payroll_indonesia/doctype/payroll_entry/payroll_entry.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
