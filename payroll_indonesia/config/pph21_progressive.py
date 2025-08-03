@@ -63,7 +63,7 @@ def sum_bruto_earnings(salary_slip):
             and row.get("statistical_component", 0) == 0
             and row.get("exempted_from_income_tax", 0) == 0
         ):
-            total += flt(row.amount)
+            total += flt(row.get("amount", 0))
     return total
 
 def sum_income_tax_deductions(salary_slip):
@@ -83,7 +83,7 @@ def sum_income_tax_deductions(salary_slip):
             and row.get("statistical_component", 0) == 0
             and "biaya jabatan" not in row.get("salary_component", "").lower()
         ):
-            total += flt(row.amount)
+            total += flt(row.get("amount", 0))
     return total
 
 def get_biaya_jabatan_from_component(salary_slip):
