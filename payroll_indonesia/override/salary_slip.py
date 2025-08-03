@@ -184,7 +184,13 @@ class CustomSalarySlip(SalarySlip):
                 start_date=getattr(self, "start_date", None),
                 nama_bulan=getattr(self, "bulan", None)
             )
-            
+
+            # When running for December or explicitly set to DECEMBER, use annual calculation
+            if bulan == 12 or str(getattr(self, "tax_type", "")).upper() == "DECEMBER":
+                # Ensure tax type is marked as DECEMBER before calculation
+                self.tax_type = "DECEMBER"
+                return self.calculate_income_tax_december()
+
             # Calculate taxable income
             taxable_income = self._calculate_taxable_income()
 
