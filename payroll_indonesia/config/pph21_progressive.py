@@ -11,6 +11,7 @@ DEFAULT_TAX_SLABS = [
     (float("inf"), 35),
 ]
 
+
 def get_tax_slabs():
     """Ambil daftar tax slab dari dokumen Income Tax Slab di settings, fallback ke DEFAULT_TAX_SLABS."""
     slab_name = config.get_value("fallback_income_tax_slab")
@@ -37,6 +38,7 @@ def get_tax_slabs():
     slabs.sort(key=lambda x: x[0])
     return slabs
 
+
 def get_ptkp_amount(tax_status):
     """Ambil PTKP dari table di settings."""
     settings = config.get_settings()
@@ -44,6 +46,7 @@ def get_ptkp_amount(tax_status):
         if row.tax_status == tax_status:
             return flt(row.ptkp_amount)
     return 0.0
+
 
 def sum_bruto_earnings(salary_slip):
     """
@@ -56,15 +59,18 @@ def sum_bruto_earnings(salary_slip):
     total = 0.0
     for row in salary_slip.get("earnings", []):
         if (
-            (row.get("is_tax_applicable", 0) == 1 or
-             row.get("is_income_tax_component", 0) == 1 or
-             row.get("variable_based_on_taxable_salary", 0) == 1)
+            (
+                row.get("is_tax_applicable", 0) == 1
+                or row.get("is_income_tax_component", 0) == 1
+                or row.get("variable_based_on_taxable_salary", 0) == 1
+            )
             and row.get("do_not_include_in_total", 0) == 0
             and row.get("statistical_component", 0) == 0
             and row.get("exempted_from_income_tax", 0) == 0
         ):
             total += flt(row.amount)
     return total
+
 
 def sum_income_tax_deductions(salary_slip):
     """
@@ -77,14 +83,17 @@ def sum_income_tax_deductions(salary_slip):
     total = 0.0
     for row in salary_slip.get("deductions", []):
         if (
-            (row.get("is_income_tax_component", 0) == 1 or
-             row.get("variable_based_on_taxable_salary", 0) == 1)
+            (
+                row.get("is_income_tax_component", 0) == 1
+                or row.get("variable_based_on_taxable_salary", 0) == 1
+            )
             and row.get("do_not_include_in_total", 0) == 0
             and row.get("statistical_component", 0) == 0
             and "biaya jabatan" not in row.get("salary_component", "").lower()
         ):
             total += flt(row.amount)
     return total
+
 
 def get_biaya_jabatan_from_component(salary_slip):
     """
@@ -96,12 +105,14 @@ def get_biaya_jabatan_from_component(salary_slip):
             return flt(row.amount)
     return 0.0
 
+
 def calculate_pkp_annual(netto_total, ptkp_annual):
     """
     PKP tahunan = (total netto setahun - PTKP setahun), dibulatkan ke ribuan terdekat.
     """
     pkp = max(netto_total - ptkp_annual, 0)
     return int(round(pkp / 1000.0)) * 1000
+
 
 def calculate_pph21_progressive(pkp_annual):
     """
@@ -121,10 +132,12 @@ def calculate_pph21_progressive(pkp_annual):
         lower_limit = batas
     return pajak
 
+
 def calculate_pph21_progressive_year(employee, salary_slips, pph21_paid_jan_nov=0):
     """
     Hitung PPh 21 progressive/normal (Desember/final year) berdasarkan income tax slab.
     Hanya untuk Employment Type: Full-time.
+    Jika ``salary_slips`` kosong, akan melempar ``frappe.ValidationError``.
 
     Args:
         employee: dict atau doc Employee (punya tax_status dan employment_type)
@@ -145,6 +158,9 @@ def calculate_pph21_progressive_year(employee, salary_slips, pph21_paid_jan_nov=
             'koreksi_pph21': float,
             'employment_type_checked': bool
         }
+
+    Raises:
+        frappe.ValidationError: jika ``salary_slips`` kosong.
     """
     employment_type = None
     if hasattr(employee, "employment_type"):
@@ -165,11 +181,20 @@ def calculate_pph21_progressive_year(employee, salary_slips, pph21_paid_jan_nov=
             "biaya_jabatan_total": 0.0,
             "koreksi_pph21": 0.0,
             "employment_type_checked": False,
-            "message": "PPh21 Progressive hanya dihitung untuk Employment Type: Full-time"
+            "message": "PPh21 Progressive hanya dihitung untuk Employment Type: Full-time",
         }
 
+    if not salary_slips:
+        raise frappe.ValidationError(
+            "Minimal satu Salary Slip diperlukan untuk perhitungan PPh21 Progressive"
+        )
+
     # 1. PTKP tahunan
-    tax_status = getattr(employee, "tax_status", None) if hasattr(employee, "tax_status") else employee.get("tax_status")
+    tax_status = (
+        getattr(employee, "tax_status", None)
+        if hasattr(employee, "tax_status")
+        else employee.get("tax_status")
+    )
     ptkp_annual = get_ptkp_amount(tax_status)
 
     # 2. Jumlah slip gaji tahun berjalan (Jan–Des)
@@ -214,5 +239,5 @@ def calculate_pph21_progressive_year(employee, salary_slips, pph21_paid_jan_nov=
         "income_tax_deduction_total": income_tax_deduction_total,
         "biaya_jabatan_total": biaya_jabatan_total,
         "koreksi_pph21": koreksi_pph21,
-        "employment_type_checked": True
+        "employment_type_checked": True,
     }
