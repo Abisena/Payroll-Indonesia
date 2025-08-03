@@ -15,7 +15,7 @@ from typing import Callable, Dict, List, Any, Optional, Tuple
 from payroll_indonesia.override.salary_slip import CustomSalarySlip
 from payroll_indonesia.config import get_value
 from payroll_indonesia.utils.sync_annual_payroll_history import sync_annual_payroll_history
-from frappe.utils import file_lock
+from frappe.utils import file_lock, getdate
 import os
 import time
 from datetime import datetime, timedelta
@@ -30,23 +30,28 @@ class CustomPayrollEntry(PayrollEntry):
     Override salary slip creation to use CustomSalarySlip with PPh21 TER/Desember logic.
     """
 
+    def _set_indonesia_flags(self) -> Optional[int]:
+        """Set flags based on posting or start date and return the month."""
+        date = self.posting_date or self.start_date
+        month = getdate(date).month if date else None
+        self.run_payroll_indonesia = int(month is not None and month != 12)
+        self.run_payroll_indonesia_december = int(month == 12)
+        return month
+
     def validate(self):
         super().validate()
-        # Payroll Indonesia custom validation
-        if getattr(self, "run_payroll_indonesia", False):
+        _ = self._set_indonesia_flags()
+        if self.run_payroll_indonesia:
             logger.info("Payroll Entry: Run Payroll Indonesia is checked.")
             if hasattr(self, "pph21_method") and not self.pph21_method:
                 self.pph21_method = get_value("pph21_method", "TER")
-        if getattr(self, "run_payroll_indonesia_december", False):
+        if self.run_payroll_indonesia_december:
             logger.info("Payroll Entry: Run Payroll Indonesia DECEMBER mode is checked.")
-            # Add December-specific validation if needed
-            
-            # Verify CustomSalarySlip has the required December calculation method
             if not hasattr(CustomSalarySlip, "calculate_income_tax_december"):
                 frappe.throw(
                     "Required method 'calculate_income_tax_december' is missing in CustomSalarySlip. "
                     "Please update the CustomSalarySlip class implementation.",
-                    title="Missing Method"
+                    title="Missing Method",
                 )
 
     def create_salary_slips(self):
@@ -57,13 +62,14 @@ class CustomPayrollEntry(PayrollEntry):
             # Clean up any existing salary slips before creating new ones
             # This prevents duplicate salary slip errors when retrying after cancel
             self.delete_salary_slips(force_cleanup=True)
-            
-            if getattr(self, "run_payroll_indonesia_december", False):
+
+            month = self._set_indonesia_flags()
+            if month == 12:
                 logger.info(
                     "Payroll Entry: Running Salary Slip generation for Payroll Indonesia DECEMBER (final year) mode."
                 )
                 return self._create_salary_slips_indonesia_december()
-            elif getattr(self, "run_payroll_indonesia", False):
+            elif month:
                 logger.info(
                     "Payroll Entry: Running Salary Slip generation for Payroll Indonesia normal mode."
                 )
