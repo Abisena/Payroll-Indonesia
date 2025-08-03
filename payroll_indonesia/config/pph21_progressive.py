@@ -1,6 +1,10 @@
 import frappe
 from frappe.utils import flt
-from payroll_indonesia.config import config
+from payroll_indonesia.config import (
+    config,
+    get_biaya_jabatan_rate,
+    get_biaya_jabatan_cap_monthly,
+)
 
 # Default progressive tax slabs PMK 168/2023 (berlaku 2024)
 DEFAULT_TAX_SLABS = [
@@ -86,15 +90,26 @@ def sum_income_tax_deductions(salary_slip):
             total += flt(row.amount)
     return total
 
-def get_biaya_jabatan_from_component(salary_slip):
+def get_biaya_jabatan_from_component(salary_slip, bruto=None):
     """
-    Ambil nilai biaya jabatan dari komponen deduction 'Biaya Jabatan' jika tersedia pada salary slip.
-    Jika tidak ditemukan, return 0.
+    Ambil nilai biaya jabatan dari komponen deduction 'Biaya Jabatan' jika tersedia pada
+    salary slip. Jika tidak ditemukan, hitung biaya jabatan standar menggunakan rate dan
+    plafon bulanan.
+
+    Args:
+        salary_slip: Dict data salary slip
+        bruto: Optional bruto amount to avoid recalculation
     """
     for row in salary_slip.get("deductions", []):
         if "biaya jabatan" in row.get("salary_component", "").lower():
             return flt(row.amount)
-    return 0.0
+
+    if bruto is None:
+        bruto = sum_bruto_earnings(salary_slip)
+
+    bj_rate = get_biaya_jabatan_rate()
+    bj_cap = get_biaya_jabatan_cap_monthly()
+    return min(bruto * bj_rate / 100, bj_cap)
 
 def calculate_pkp_annual(netto_total, ptkp_annual):
     """
@@ -176,17 +191,20 @@ def calculate_pph21_progressive_year(employee, salary_slips, pph21_paid_jan_nov=
     bruto_total = 0.0
     income_tax_deduction_total = 0.0
     biaya_jabatan_total = 0.0
-    netto_total = 0.0
 
     for slip in salary_slips:
         bruto = sum_bruto_earnings(slip)
         pengurang_netto = sum_income_tax_deductions(slip)
-        biaya_jabatan = get_biaya_jabatan_from_component(slip)
-        netto = bruto - pengurang_netto - biaya_jabatan
+        biaya_jabatan = get_biaya_jabatan_from_component(slip, bruto)
         bruto_total += bruto
         income_tax_deduction_total += pengurang_netto
         biaya_jabatan_total += biaya_jabatan
-        netto_total += netto
+
+    # Terapkan plafon biaya jabatan tahunan (12x plafon bulanan)
+    bj_cap_annual = get_biaya_jabatan_cap_monthly() * 12
+    biaya_jabatan_total = min(biaya_jabatan_total, bj_cap_annual)
+
+    netto_total = bruto_total - income_tax_deduction_total - biaya_jabatan_total
 
     # 3. PKP tahunan
     pkp_annual = calculate_pkp_annual(netto_total, ptkp_annual)
