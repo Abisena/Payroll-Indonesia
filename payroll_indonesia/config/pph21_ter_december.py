@@ -1,22 +1,34 @@
 """
-PPh21 December Progressive (Annual Correction) calculation module.
+PPh21 December Progressive (Annual Correction) calculation module (+ partial-year policy).
 
 This module handles the December/annual income tax correction calculation
-for Indonesian payroll using the progressive tax rates. It ONLY handles
-December calculations, not regular monthly TER calculations.
+for Indonesian payroll using the progressive tax rates. It ALSO provides a
+wrapper function that can automatically switch to monthly TER for employees
+who did not work a full 12 months in the tax year (partial-year policy).
 
-IMPORTANT: This module only handles December/annual calculations.
-           Regular monthly calculations must use pph21_ter.py
+IMPORTANT:
+- Annual/December correction logic is in `calculate_pph21_december()`
+  and `calculate_pph21_december_from_slips()`.
+- The wrapper `calculate_pph21_desember()` chooses between:
+    * Auto (partial year -> TER monthly; full year -> annual correction)
+    * Force Annual (always annual correction)
+    * Force Monthly (always monthly TER)
+- Regular monthly TER calculations still belong to pph21_ter.py.
 """
 
+from __future__ import annotations
 from typing import Dict, Any, List, Union, Tuple, Optional
 import frappe
 from frappe import ValidationError
-from frappe.utils import flt, getdate
+from frappe.utils import flt, getdate, nowdate
 from decimal import Decimal, ROUND_HALF_UP
+from datetime import date
 
 from payroll_indonesia.config import get_ptkp_amount, config
 
+# ---------------------------------------------------------------------------
+# DEFAULT TAX SLABS (progressive) & CONFIGURED SLABS
+# ---------------------------------------------------------------------------
 DEFAULT_TAX_SLABS = [
     (60_000_000, 5),
     (250_000_000, 15),
@@ -25,11 +37,9 @@ DEFAULT_TAX_SLABS = [
     (float("inf"), 35),
 ]
 
-# ---------------------------------------------------------------------------
-# HELPERS
-# ---------------------------------------------------------------------------
 
 def get_tax_slabs() -> List[Tuple[float, float]]:
+    """Return tax slabs from configured Income Tax Slab; fallback to defaults."""
     slab_name = config.get_value("fallback_income_tax_slab")
     if not slab_name:
         return DEFAULT_TAX_SLABS
@@ -51,6 +61,10 @@ def get_tax_slabs() -> List[Tuple[float, float]]:
     slabs.sort(key=lambda x: x[0])
     return slabs
 
+
+# ---------------------------------------------------------------------------
+# UTILS (salary slip helpers)
+# ---------------------------------------------------------------------------
 
 def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
     total = 0.0
@@ -108,9 +122,13 @@ def _pph21_paid_in_slip(slip_dict: Dict[str, Any]) -> float:
     )
 
 
-# --- pembulatan yang benar untuk PKP & PPh ---
+# ---------------------------------------------------------------------------
+# ROUNDING, PKP, PROGRESSIVE TAX
+# ---------------------------------------------------------------------------
+
 def floor_to_thousand(x: float) -> int:
     return int(flt(x) // 1000) * 1000
+
 
 def round_rupiah(x: float) -> int:
     return int(Decimal(x).quantize(Decimal("1"), rounding=ROUND_HALF_UP))
@@ -134,8 +152,9 @@ def calculate_pph21_progressive(pkp_annual: float) -> float:
         lower = batas
     return pajak
 
+
 # ---------------------------------------------------------------------------
-# MAIN (DECEMBER-ONLY FLOW)
+# ANNUAL / DECEMBER-ONLY CALCULATIONS (as-is)
 # ---------------------------------------------------------------------------
 
 def calculate_pph21_december(
@@ -328,3 +347,182 @@ def calculate_pph21_december_from_slips(
         "koreksi_pph21": koreksi_pph21,
         "employment_type_checked": True,
     }
+
+
+# ---------------------------------------------------------------------------
+# PARTIAL-YEAR POLICY: AUTO / FORCE ANNUAL / FORCE MONTHLY
+# ---------------------------------------------------------------------------
+PARTIAL_YEAR_POLICIES = {"auto", "force_annual", "force_monthly"}
+
+
+def _months_worked_in_year(employee, year: int, salary_slips: list) -> int:
+    """Hitung jumlah bulan bekerja pada 'year'. Prefer DOJ/DOR; fallback dari slip."""
+    doj = getattr(employee, "date_of_joining", None) or (employee.get("date_of_joining") if isinstance(employee, dict) else None)
+    dor = getattr(employee, "relieving_date", None) or (employee.get("relieving_date") if isinstance(employee, dict) else None)
+    if doj:
+        doj = getdate(doj)
+    if dor:
+        dor = getdate(dor)
+
+    start = date(year, 1, 1)
+    end = date(year, 12, 31)
+
+    if doj and doj.year == year and doj > start:
+        start = date(year, doj.month, 1)
+    if dor and dor.year == year and dor < end:
+        end = date(year, dor.month, 1)
+
+    if doj or dor:
+        months = max(0, (end.year - start.year) * 12 + (end.month - start.month) + 1)
+        return min(months, 12)
+
+    # fallback: jumlah bulan unik dari slip
+    months = set()
+    for s in salary_slips or []:
+        d = s.get("start_date") or s.get("posting_date")
+        if not d:
+            continue
+        dt = d if hasattr(d, "month") else getdate(d)
+        if dt.year == year:
+            months.add(dt.month)
+    return len(months)
+
+
+# try using the monthly TER engine if available
+try:
+    from .pph21_ter import calculate_pph21_ter as _calc_ter_module
+except Exception:
+    _calc_ter_module = None
+
+
+def _calc_ter_monthly_fallback(bruto_des: float, pengurang_netto_des: float, bj_month: float, ptkp_annual: float) -> float:
+    """Fallback TER sederhana:
+    PKP_bulan = max(netto - PTKP/12, 0) dibulatkan ke ribuan bawah; pajak progresif atas PKP_bulan.
+    """
+    ptkp_month = flt(ptkp_annual) / 12.0
+    netto = max(0.0, flt(bruto_des) - flt(bj_month) - flt(pengurang_netto_des))
+    pkp_month = max(netto - ptkp_month, 0.0)
+    pkp_month = floor_to_thousand(pkp_month)
+    return round_rupiah(calculate_pph21_progressive(pkp_month))
+
+
+def _calc_ter_monthly(employee, company, bruto_des: float, pengurang_netto_des: float, bj_month: float, ptkp_annual: float) -> float:
+    if _calc_ter_module:
+        res = _calc_ter_module(
+            employee=employee,
+            company=company,
+            taxable_income={
+                "bruto": flt(bruto_des),
+                "pengurang_netto": flt(pengurang_netto_des),
+                "biaya_jabatan": flt(bj_month),
+            },
+            bulan=12,
+        )
+        return flt(res.get("pph21", 0.0))
+    return _calc_ter_monthly_fallback(bruto_des, pengurang_netto_des, bj_month, ptkp_annual)
+
+
+def calculate_pph21_desember(
+    *,
+    employee: Union[Dict[str, Any], Any],
+    company: str,
+    salary_slips: List[Dict[str, Any]],
+    bruto_desember: float,
+    pengurang_netto_desember: float = 0.0,
+    biaya_jabatan_desember: float = 0.0,
+    year: Optional[int] = None,
+    partial_year_policy: str = "auto",
+) -> Dict[str, Any]:
+    """Wrapper keputusan Desember:
+      - auto:          <12 bulan -> TER bulanan; 12 bulan -> annual correction
+      - force_annual:  selalu annual correction
+      - force_monthly: selalu TER bulanan
+
+    Return dict kompatibel dengan payload annual lama (memiliki 'koreksi_pph21').
+    """
+    if not employee:
+        frappe.throw("Employee data is required for PPh21 calculation", title="Missing Employee")
+    if not company:
+        frappe.throw("Company is required for PPh21 calculation", title="Missing Company")
+
+    policy = (partial_year_policy or "auto").lower().strip().replace("-", "_")
+    if policy not in PARTIAL_YEAR_POLICIES:
+        policy = "auto"
+
+    # tentukan tahun dari slip Desember
+    if not year:
+        dt_des = None
+        for s in salary_slips or []:
+            d = s.get("start_date") or s.get("posting_date")
+            if d:
+                _d = d if hasattr(d, "month") else getdate(d)
+                if _d.month == 12:
+                    dt_des = _d
+                    break
+        year = (dt_des.year if dt_des else getdate(nowdate()).year)
+
+    # PTKP tahunan
+    try:
+        ptkp_annual = flt(get_ptkp_amount(employee))
+    except Exception:
+        ptkp_annual = 0.0
+
+    bruto_des = flt(bruto_desember)
+    bj_month = min(flt(biaya_jabatan_desember), 500_000.0, bruto_des * 0.05)
+
+    months_worked = _months_worked_in_year(employee, year, salary_slips)
+    is_partial_year = months_worked < 12
+
+    must_monthly = (policy == "force_monthly") or (policy == "auto" and is_partial_year)
+    if must_monthly:
+        pph21_bulan = _calc_ter_monthly(
+            employee, company, bruto_des, pengurang_netto_desember, bj_month, ptkp_annual
+        )
+        slab_txt = "/".join(f"{r}%" for _, r in get_tax_slabs())
+        bruto_jan_nov = sum(
+            flt(s.get("gross_pay", 0))
+            for s in salary_slips
+            if (s.get("start_date") or s.get("posting_date"))
+            and (getdate(s.get("start_date") or s.get("posting_date")).month != 12)
+        )
+        pph21_paid_jan_nov = sum(
+            flt(s.get("income_tax_deduction", 0))
+            for s in salary_slips
+            if (s.get("start_date") or s.get("posting_date"))
+            and (getdate(s.get("start_date") or s.get("posting_date")).month != 12)
+        )
+        return {
+            "bruto_jan_nov": bruto_jan_nov,
+            "netto_jan_nov": 0.0,
+            "pph21_paid_jan_nov": pph21_paid_jan_nov,
+            "bruto_desember": bruto_des,
+            "pengurang_netto_desember": flt(pengurang_netto_desember),
+            "biaya_jabatan_desember": bj_month,
+            "netto_desember": max(0.0, bruto_des - bj_month - flt(pengurang_netto_desember)),
+            "jp_jht_employee_month": 0.0,
+            "jp_jht_employee_annual": 0.0,
+            "bruto_total": bruto_jan_nov + bruto_des,
+            "netto_total": 0.0,
+            "ptkp_annual": ptkp_annual,
+            "pkp_annual": 0.0,
+            "rate": slab_txt,
+            "pph21_annual": 0.0,
+            "pph21_bulan": pph21_bulan,
+            "koreksi_pph21": pph21_bulan,
+            "employment_type_checked": True,
+            "note": f"Partial year = {months_worked} bln. Mode=TER (policy={policy}).",
+        }
+
+    # else: annual correction (full-year or forced annual)
+    return calculate_pph21_december(
+        employee=employee,
+        company=company,
+        ytd_bruto_jan_nov=0.0,          # isi sesuai APH jika tersedia di caller
+        ytd_netto_jan_nov=0.0,          # hanya display; tidak mempengaruhi perhitungan
+        ytd_tax_paid_jan_nov=0.0,       # sebaiknya diisi agar koreksi akurat
+        bruto_desember=bruto_desember,
+        pengurang_netto_desember=pengurang_netto_desember,
+        biaya_jabatan_desember=biaya_jabatan_desember,
+        december_slip=None,
+        jp_jht_employee_month=None,
+    )

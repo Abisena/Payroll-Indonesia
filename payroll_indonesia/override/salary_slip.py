@@ -9,6 +9,7 @@ Custom Salary Slip override for Payroll Indonesia.
   * Tahunan = (Jan–Nov APH) + (Desember dari slip).
   * PPh Desember (koreksi) = PPh tahunan − total PPh Jan–Nov (APH).
 - Selalu menulis baris "PPh 21" di deductions dan sinkron dengan UI.
+- Mendukung policy: auto / force_annual / force_monthly.
 """
 
 try:
@@ -38,7 +39,8 @@ from frappe.utils.safe_exec import safe_eval
 # Hitung PPh
 from payroll_indonesia.config.pph21_ter import calculate_pph21_TER
 from payroll_indonesia.config.pph21_ter_december import (
-    calculate_pph21_december,
+    calculate_pph21_december,        # annual correction (desember-only)
+    calculate_pph21_desember,        # wrapper: auto/force_annual/force_monthly
     sum_bruto_earnings,               # ambil bruto taxable slip ini (Desember)
     sum_pengurang_netto_bulanan,      # pengurang netto bulanan (exclude Biaya Jabatan)
     biaya_jabatan_bulanan,            # min(5% × bruto_bulan, 500.000)
@@ -70,7 +72,8 @@ class CustomSalarySlip(SalarySlip):
                 "january": 1, "jan": 1, "januari": 1,
                 "february": 2, "feb": 2, "februari": 2,
                 "march": 3, "mar": 3, "maret": 3,
-                "april": 4, "may": 5, "mei": 5,
+                "april": 4, "apr": 4,  # <<— alias tambahan
+                "may": 5, "mei": 5,
                 "june": 6, "jun": 6, "juni": 6,
                 "july": 7, "jul": 7, "juli": 7,
                 "august": 8, "aug": 8, "agustus": 8,
@@ -100,6 +103,44 @@ class CustomSalarySlip(SalarySlip):
                 )
                 raise frappe.ValidationError(f"Employee '{emp}' not found.")
         return {}
+
+    # -------------------------
+    # Policy resolver (Auto / Force Annual / Force Monthly)
+    # -------------------------
+    def _effective_december_policy(self) -> str:
+        """Kembalikan policy efektif untuk kalkulasi Desember.
+        Urutan prioritas:
+        1) Per-slip override via field (checkbox) jika tersedia.
+        2) Runtime override via flags (doc.flags.december_policy_override).
+        3) Settings (Payroll Indonesia Settings.decem…_partial_year_policy) bila ada.
+        4) Default: "auto".
+        """
+        # 1) Per-slip field override (jika kamu menambahkan field ini ke doctype Salary Slip)
+        if getattr(self, "force_annual_december", 0):
+            return "force_annual"
+        if getattr(self, "force_monthly_december", 0):
+            return "force_monthly"
+
+        # 2) Runtime flags override (tanpa ubah schema)
+        try:
+            val = (getattr(self, "flags", {}) or {}).get("december_policy_override")
+            val = (val or "").lower()
+            if val in {"auto", "force_annual", "force_monthly"}:
+                return val
+        except Exception:
+            pass
+
+        # 3) Settings (aman meski field belum ada)
+        try:
+            meta = frappe.get_meta("Payroll Indonesia Settings")
+            if meta and hasattr(meta, "has_field") and meta.has_field("december_partial_year_policy"):
+                val = frappe.db.get_single_value("Payroll Indonesia Settings", "december_partial_year_policy")
+                if val:
+                    return val.lower()
+        except Exception:
+            pass
+
+        return "auto"
 
     # -------------------------
     # Evaluasi formula
@@ -215,10 +256,39 @@ class CustomSalarySlip(SalarySlip):
         return ytd_bruto, ytd_netto, ytd_tax
 
     # -------------------------
+    # Ambil slip setahun (untuk auto/override
+    # -------------------------
+    def _get_salary_slips_for_year(self):
+        fiscal_year = getattr(self, "fiscal_year", None)
+        if not fiscal_year and getattr(self, "start_date", None):
+            fiscal_year = str(getdate(self.start_date).year)
+        if not fiscal_year:
+            return []
+        try:
+            rows = frappe.get_all(
+                "Salary Slip",
+                filters={"employee": self.employee, "fiscal_year": fiscal_year},
+                fields=["name", "start_date", "posting_date", "gross_pay", "income_tax_deduction"],
+                order_by="start_date asc",
+            )
+            slips = []
+            for r in rows:
+                doc = frappe.get_doc("Salary Slip", r.name)
+                slips.append(doc.as_dict())
+            return slips
+        except Exception as e:
+            logger.warning(f"Failed fetching salary slips for year {fiscal_year}: {e}")
+            return []
+
+    # -------------------------
     # PPh 21 Progressive (Desember)
     # -------------------------
     def calculate_income_tax_december(self):
-        """Hitung PPh21 Desember (annual correction) sesuai arahan Desember-only."""
+        """Hitung PPh21 Desember:
+        - Auto: partial-year -> TER bulanan; full-year -> annual correction
+        - Force Annual: selalu annual correction
+        - Force Monthly: selalu TER bulanan
+        """
         try:
             if not getattr(self, "employee", None):
                 frappe.throw("Employee data is required for PPh21 calculation", title="Missing Employee")
@@ -227,57 +297,96 @@ class CustomSalarySlip(SalarySlip):
 
             employee_doc = self.get_employee_doc()
 
-            # === 1) Ambil YTD Jan–Nov dari APH ===
+            # 1) Ambil YTD Jan–Nov dari APH (untuk display & koreksi saat annual)
             ytd_bruto_jan_nov, ytd_netto_jan_nov, ytd_tax_paid_jan_nov = self._get_ytd_from_aph()
 
-            # === 2) Ambil data Desember dari slip aktif ===
+            # 2) Data Desember dari slip aktif
             slip_dict = self.as_dict()
             bruto_desember = sum_bruto_earnings(slip_dict)
             pengurang_netto_desember = sum_pengurang_netto_bulanan(slip_dict)
-            biaya_jabatan_desember = biaya_jabatan_bulanan(bruto_desember)  # min(5% × bruto Des, 500k)
+            biaya_jabatan_desember = biaya_jabatan_bulanan(bruto_desember)
 
-            # >>> PENTING: Baca JP+JHT (EE) bulan Desember dari deduction slip <<<
+            # JP+JHT (EE) bulan Desember untuk display/annual (opsional)
             jp_jht_employee_month = 0.0
             for d in (slip_dict.get("deductions") or []):
                 name = (d.get("salary_component") or "").strip().lower()
                 if name in {"bpjs jht employee", "bpjs jp employee"}:
                     jp_jht_employee_month += flt(d.get("amount", 0))
 
-            # === 3) Hitung PPh21 Desember berbasis tahunan (December-only) ===
-            result = calculate_pph21_december(
-                employee=employee_doc,
-                company=self.company,
-                ytd_bruto_jan_nov=ytd_bruto_jan_nov,
-                ytd_netto_jan_nov=ytd_netto_jan_nov,
-                ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
-                bruto_desember=bruto_desember,
-                pengurang_netto_desember=pengurang_netto_desember,   # hanya untuk display
-                biaya_jabatan_desember=biaya_jabatan_desember,
-                # Dua opsi (pilih salah satu, yang bawah lebih eksplisit):
-                # december_slip=slip_dict,
-                jp_jht_employee_month=jp_jht_employee_month,
-            )
+            # 3) Policy efektif (auto/force_annual/force_monthly)
+            policy = self._effective_december_policy()
 
-            # Nilai pajak yang diposting untuk bulan Desember (koreksi)
-            tax_amount = flt(result.get("pph21_bulan", 0.0))
+            # 4) Siapkan daftar slip tahun berjalan untuk deteksi partial-year (Auto)
+            try:
+                year_slips = self._get_salary_slips_for_year()
+            except Exception:
+                year_slips = []
+            # pastikan slip saat ini ikut dihitung jika belum ada di DB
+            try:
+                year_slips = list(year_slips or [])
+                year_slips.append({
+                    "start_date": getattr(self, "start_date", None),
+                    "posting_date": getattr(self, "posting_date", None),
+                    "gross_pay": getattr(self, "gross_pay", 0),
+                    "income_tax_deduction": getattr(self, "tax", 0),
+                    "earnings": getattr(self, "earnings", []) or [],
+                    "deductions": getattr(self, "deductions", []) or [],
+                })
+            except Exception:
+                pass
 
-            # Simpan ke field standar
+            # 5) Jika force_annual -> langsung hitung annual correction dengan YTD APH
+            if policy == "force_annual":
+                res = calculate_pph21_december(
+                    employee=employee_doc,
+                    company=self.company,
+                    ytd_bruto_jan_nov=ytd_bruto_jan_nov,
+                    ytd_netto_jan_nov=ytd_netto_jan_nov,
+                    ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
+                    bruto_desember=bruto_desember,
+                    pengurang_netto_desember=pengurang_netto_desember,   # display only
+                    biaya_jabatan_desember=biaya_jabatan_desember,
+                    jp_jht_employee_month=jp_jht_employee_month,
+                )
+            else:
+                # 6) Jalankan wrapper; jika partial-year -> TER bulanan, jika full-year -> annual
+                res = calculate_pph21_desember(
+                    employee=employee_doc,
+                    company=self.company,
+                    salary_slips=year_slips,
+                    bruto_desember=bruto_desember,
+                    pengurang_netto_desember=pengurang_netto_desember,
+                    biaya_jabatan_desember=biaya_jabatan_desember,
+                    partial_year_policy=policy,
+                )
+                # Jika wrapper memilih ANNUAL (full-year), pastikan koreksi pakai YTD APH yang akurat
+                if res.get("pph21_annual", 0) and res.get("koreksi_pph21", 0) == res.get("pph21_annual", 0):
+                    res = calculate_pph21_december(
+                        employee=employee_doc,
+                        company=self.company,
+                        ytd_bruto_jan_nov=ytd_bruto_jan_nov,
+                        ytd_netto_jan_nov=ytd_netto_jan_nov,
+                        ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
+                        bruto_desember=bruto_desember,
+                        pengurang_netto_desember=pengurang_netto_desember,
+                        biaya_jabatan_desember=biaya_jabatan_desember,
+                        jp_jht_employee_month=jp_jht_employee_month,
+                    )
+
+            # 7) Posting ke slip
+            tax_amount = flt(res.get("pph21_bulan", 0.0))
             self.tax = tax_amount
             try:
                 self.tax_type = "DECEMBER"
             except AttributeError:
-                result["_tax_type"] = "DECEMBER"
+                res["_tax_type"] = "DECEMBER"
 
-            # Simpan detail ke pph21_info
-            self.pph21_info = json.dumps(result)
-
-            # Pastikan baris PPh21 di deductions ter-update
+            self.pph21_info = json.dumps(res)
             self.update_pph21_row(tax_amount)
 
-            # (Opsional) log audit
             frappe.logger().info(
-                f"[DEC] {self.name} bruto_des={bruto_desember} bj_month={biaya_jabatan_desember} "
-                f"jp_jht_month={jp_jht_employee_month} ytd_pph={ytd_tax_paid_jan_nov} -> tax_dec={tax_amount}"
+                f"[DEC] {self.name} policy={policy} bruto_des={bruto_desember} bj={biaya_jabatan_desember} "
+                f"ytd_pph={ytd_tax_paid_jan_nov} -> tax_dec={tax_amount}"
             )
             return tax_amount
 
@@ -289,7 +398,7 @@ class CustomSalarySlip(SalarySlip):
                 title=f"Payroll Indonesia December Calculation Error - {self.name}",
             )
             raise frappe.ValidationError(f"Error in December PPh21 calculation: {e}")
-        
+
     # -------------------------
     # Utilitas lain
     # -------------------------
