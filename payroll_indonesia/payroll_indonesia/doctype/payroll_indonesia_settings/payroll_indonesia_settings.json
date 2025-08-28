@@ -45,6 +45,18 @@
       "description": "Salary Slip diproses via background job"
     },
     {
+      "fieldname": "office_latitude",
+      "fieldtype": "Float",
+      "label": "Office Latitude",
+      "precision": 6
+    },
+    {
+      "fieldname": "office_longitude",
+      "fieldtype": "Float",
+      "label": "Office Longitude",
+      "precision": 6
+    },
+    {
       "fieldname": "bpjs_settings_section",
       "fieldtype": "Section Break",
       "label": "BPJS Settings"

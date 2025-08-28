@@ -12,6 +12,8 @@ Modul ini menyimpan semua konfigurasi penggajian sesuai regulasi Indonesia seper
 | `validate_tax_status_strict`      | Check                       | Validasi `tax_status` terhadap PTKP table |
 | `salary_slip_use_component_cache` | Check                       | Aktifkan cache komponen Salary Slip |
 | `auto_queue_salary_slip`          | Check                       | Salary Slip diproses via background job |
+| `office_latitude`                 | Float                       | Koordinat latitude kantor |
+| `office_longitude`                | Float                       | Koordinat longitude kantor |
 
 ---
 
