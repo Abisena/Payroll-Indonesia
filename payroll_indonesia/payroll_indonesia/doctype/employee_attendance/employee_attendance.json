@@ -1,0 +1,45 @@
+{
+  "doctype": "DocType",
+  "name": "Employee Attendance",
+  "module": "Payroll Indonesia",
+  "custom": 1,
+  "istable": 0,
+  "editable_grid": 0,
+  "is_submittable": 1,
+  "fields": [
+    {
+      "fieldname": "employee",
+      "fieldtype": "Link",
+      "label": "Employee",
+      "options": "Employee",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "employee_name",
+      "fieldtype": "Data",
+      "label": "Employee Name",
+      "fetch_from": "employee.employee_name",
+      "read_only": 1
+    },
+    {
+      "fieldname": "attendance_date",
+      "fieldtype": "Date",
+      "label": "Date",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "status",
+      "fieldtype": "Select",
+      "label": "Status",
+      "options": "Present\nIzin\nSakit\nTanpa Keterangan",
+      "default": "Present",
+      "reqd": 1,
+      "in_list_view": 1
+    }
+  ],
+  "permissions": [
+    {"role": "System Manager"}
+  ]
+}

@@ -20,7 +20,19 @@ from __future__ import annotations
 from typing import Dict, Any, List, Union, Tuple, Optional
 import frappe
 from frappe import ValidationError
-from frappe.utils import flt, getdate, nowdate
+try:
+    from frappe.utils import flt, getdate, nowdate
+except Exception:  # pragma: no cover
+    from datetime import datetime
+
+    def flt(value, precision=None):
+        return float(value)
+
+    def getdate(value):
+        return datetime.strptime(str(value), "%Y-%m-%d")
+
+    def nowdate():
+        return datetime.now().date().isoformat()
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import date
 
@@ -162,16 +174,20 @@ def calculate_pph21_december(
     employee: Union[Dict[str, Any], Any],
     company: str,
     # APH (Jan–Nov) — hanya untuk total PPh Jan–Nov:
-    ytd_bruto_jan_nov: float,
-    ytd_netto_jan_nov: float,
-    ytd_tax_paid_jan_nov: float,
+    ytd_bruto_jan_nov: float = 0.0,
+    ytd_netto_jan_nov: float = 0.0,
+    ytd_tax_paid_jan_nov: float = 0.0,
     # Input Desember:
-    bruto_desember: float,
-    pengurang_netto_desember: float,
-    biaya_jabatan_desember: float,
+    bruto_desember: float = 0.0,
+    pengurang_netto_desember: float = 0.0,
+    biaya_jabatan_desember: float = 0.0,
     # Opsional (salah satu boleh diisi):
     december_slip: Optional[Dict[str, Any]] = None,
     jp_jht_employee_month: Optional[float] = None,
+    # Backward compatibility params
+    taxable_income: Optional[float] = None,
+    ytd_income: Optional[float] = None,
+    ytd_tax_paid: Optional[float] = None,
 ) -> Dict[str, Any]:
 
     if not employee:
@@ -180,6 +196,12 @@ def calculate_pph21_december(
         frappe.throw("Company is required for PPh21 calculation", title="Missing Company")
 
     emp_type = employee.get("employment_type") if isinstance(employee, dict) else getattr(employee, "employment_type", None)
+
+    # Legacy parameter mapping
+    if taxable_income is not None or ytd_income is not None or ytd_tax_paid is not None:
+        bruto_desember = flt(taxable_income or 0.0)
+        ytd_bruto_jan_nov = flt(ytd_income or 0.0)
+        ytd_tax_paid_jan_nov = flt(ytd_tax_paid or 0.0)
     if emp_type != "Full-time":
         return {
             "bruto_total": 0.0, "netto_total": 0.0, "ptkp_annual": 0.0, "pkp_annual": 0.0,

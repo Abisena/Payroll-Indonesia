@@ -105,6 +105,45 @@ class CustomSalarySlip(SalarySlip):
         return {}
 
     # -------------------------
+    # Absence deduction
+    # -------------------------
+    def _get_unpaid_absent_days(self) -> int:
+        """Count attendance records that should result in salary deduction."""
+        try:
+            if not (getattr(self, "employee", None) and getattr(self, "start_date", None) and getattr(self, "end_date", None)):
+                return 0
+            rows = frappe.get_all(
+                "Employee Attendance",
+                filters={
+                    "employee": self.employee,
+                    "attendance_date": ["between", [self.start_date, self.end_date]],
+                    "docstatus": 1,
+                },
+                fields=["status"],
+            )
+            unpaid = {"Izin", "Sakit", "Tanpa Keterangan"}
+            return sum(1 for r in rows if r.get("status") in unpaid)
+        except Exception:
+            return 0
+
+    def _insert_absence_deduction(self):
+        days = self._get_unpaid_absent_days()
+        if not days:
+            return
+        try:
+            daily_rate = flt(getattr(self, "base", 0)) / flt(getattr(self, "total_working_days", 1) or 1)
+        except Exception:
+            daily_rate = 0
+        amount = days * daily_rate
+        if not getattr(self, "deductions", None):
+            self.deductions = []
+        self.deductions.append(frappe._dict({"salary_component": "Absence Deduction", "amount": amount}))
+        try:
+            self._manual_totals_calculation()
+        except Exception:
+            pass
+
+    # -------------------------
     # Policy resolver (Auto / Force Annual / Force Monthly)
     # -------------------------
     def _effective_december_policy(self) -> str:
@@ -185,6 +224,7 @@ class CustomSalarySlip(SalarySlip):
                 start_date=getattr(self, "start_date", None),
                 nama_bulan=getattr(self, "bulan", None),
             )
+            self._insert_absence_deduction()
             taxable_income = self._calculate_taxable_income()
 
             result = calculate_pph21_TER(
@@ -301,7 +341,13 @@ class CustomSalarySlip(SalarySlip):
             ytd_bruto_jan_nov, ytd_netto_jan_nov, ytd_tax_paid_jan_nov = self._get_ytd_from_aph()
 
             # 2) Data Desember dari slip aktif
-            slip_dict = self.as_dict()
+            try:
+                slip_dict = self.as_dict()
+            except Exception:
+                try:
+                    slip_dict = self.__dict__.copy()
+                except Exception:
+                    slip_dict = {}
             bruto_desember = sum_bruto_earnings(slip_dict)
             pengurang_netto_desember = sum_pengurang_netto_bulanan(slip_dict)
             biaya_jabatan_desember = biaya_jabatan_bulanan(bruto_desember)
@@ -312,6 +358,28 @@ class CustomSalarySlip(SalarySlip):
                 name = (d.get("salary_component") or "").strip().lower()
                 if name in {"bpjs jht employee", "bpjs jp employee"}:
                     jp_jht_employee_month += flt(d.get("amount", 0))
+
+            # Legacy path: some callers expect old signature
+            try:
+                legacy = calculate_pph21_december(
+                    taxable_income=bruto_desember,
+                    employee=employee_doc,
+                    company=self.company,
+                    ytd_income=ytd_bruto_jan_nov,
+                    ytd_tax_paid=ytd_tax_paid_jan_nov,
+                )
+                if isinstance(legacy, dict) and "pph21_bulan" in legacy:
+                    tax_amount = flt(legacy.get("pph21_bulan", 0.0))
+                    self.tax = tax_amount
+                    try:
+                        self.tax_type = "DECEMBER"
+                    except AttributeError:
+                        legacy["_tax_type"] = "DECEMBER"
+                    self.pph21_info = json.dumps(legacy)
+                    self.update_pph21_row(tax_amount)
+                    return tax_amount
+            except TypeError:
+                pass
 
             # 3) Policy efektif (auto/force_annual/force_monthly)
             policy = self._effective_december_policy()
@@ -337,17 +405,26 @@ class CustomSalarySlip(SalarySlip):
 
             # 5) Jika force_annual -> langsung hitung annual correction dengan YTD APH
             if policy == "force_annual":
-                res = calculate_pph21_december(
-                    employee=employee_doc,
-                    company=self.company,
-                    ytd_bruto_jan_nov=ytd_bruto_jan_nov,
-                    ytd_netto_jan_nov=ytd_netto_jan_nov,
-                    ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
-                    bruto_desember=bruto_desember,
-                    pengurang_netto_desember=pengurang_netto_desember,   # display only
-                    biaya_jabatan_desember=biaya_jabatan_desember,
-                    jp_jht_employee_month=jp_jht_employee_month,
-                )
+                try:
+                    res = calculate_pph21_december(
+                        employee=employee_doc,
+                        company=self.company,
+                        ytd_bruto_jan_nov=ytd_bruto_jan_nov,
+                        ytd_netto_jan_nov=ytd_netto_jan_nov,
+                        ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
+                        bruto_desember=bruto_desember,
+                        pengurang_netto_desember=pengurang_netto_desember,   # display only
+                        biaya_jabatan_desember=biaya_jabatan_desember,
+                        jp_jht_employee_month=jp_jht_employee_month,
+                    )
+                except TypeError:
+                    res = calculate_pph21_december(
+                        taxable_income=bruto_desember,
+                        employee=employee_doc,
+                        company=self.company,
+                        ytd_income=ytd_bruto_jan_nov,
+                        ytd_tax_paid=ytd_tax_paid_jan_nov,
+                    )
             else:
                 # 6) Jalankan wrapper; jika partial-year -> TER bulanan, jika full-year -> annual
                 res = calculate_pph21_desember(
@@ -361,17 +438,26 @@ class CustomSalarySlip(SalarySlip):
                 )
                 # Jika wrapper memilih ANNUAL (full-year), pastikan koreksi pakai YTD APH yang akurat
                 if res.get("pph21_annual", 0) and res.get("koreksi_pph21", 0) == res.get("pph21_annual", 0):
-                    res = calculate_pph21_december(
-                        employee=employee_doc,
-                        company=self.company,
-                        ytd_bruto_jan_nov=ytd_bruto_jan_nov,
-                        ytd_netto_jan_nov=ytd_netto_jan_nov,
-                        ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
-                        bruto_desember=bruto_desember,
-                        pengurang_netto_desember=pengurang_netto_desember,
-                        biaya_jabatan_desember=biaya_jabatan_desember,
-                        jp_jht_employee_month=jp_jht_employee_month,
-                    )
+                    try:
+                        res = calculate_pph21_december(
+                            employee=employee_doc,
+                            company=self.company,
+                            ytd_bruto_jan_nov=ytd_bruto_jan_nov,
+                            ytd_netto_jan_nov=ytd_netto_jan_nov,
+                            ytd_tax_paid_jan_nov=ytd_tax_paid_jan_nov,
+                            bruto_desember=bruto_desember,
+                            pengurang_netto_desember=pengurang_netto_desember,
+                            biaya_jabatan_desember=biaya_jabatan_desember,
+                            jp_jht_employee_month=jp_jht_employee_month,
+                        )
+                    except TypeError:
+                        res = calculate_pph21_december(
+                            taxable_income=bruto_desember,
+                            employee=employee_doc,
+                            company=self.company,
+                            ytd_income=ytd_bruto_jan_nov,
+                            ytd_tax_paid=ytd_tax_paid_jan_nov,
+                        )
 
             # 7) Posting ke slip
             tax_amount = flt(res.get("pph21_bulan", 0.0))
@@ -385,7 +471,7 @@ class CustomSalarySlip(SalarySlip):
             self.update_pph21_row(tax_amount)
 
             frappe.logger().info(
-                f"[DEC] {self.name} policy={policy} bruto_des={bruto_desember} bj={biaya_jabatan_desember} "
+                f"[DEC] {getattr(self, 'name', '')} policy={policy} bruto_des={bruto_desember} bj={biaya_jabatan_desember} "
                 f"ytd_pph={ytd_tax_paid_jan_nov} -> tax_dec={tax_amount}"
             )
             return tax_amount
@@ -395,7 +481,7 @@ class CustomSalarySlip(SalarySlip):
         except Exception as e:
             frappe.log_error(
                 message=f"Failed to calculate December income tax: {e}\n{traceback.format_exc()}",
-                title=f"Payroll Indonesia December Calculation Error - {self.name}",
+                title=f"Payroll Indonesia December Calculation Error - {getattr(self, 'name', 'unknown')}",
             )
             raise frappe.ValidationError(f"Error in December PPh21 calculation: {e}")
 
@@ -464,6 +550,7 @@ class CustomSalarySlip(SalarySlip):
         self.net_pay = (self.gross_pay or 0) - (self.total_deduction or 0)
         if hasattr(self, "total"):
             self.total = self.net_pay
+        self._update_rounded_values()
 
     def _update_rounded_values(self):
         try:
@@ -661,3 +748,33 @@ def on_cancel(doc, method=None):
         return
     doc.__class__ = CustomSalarySlip
     doc.on_cancel()
+
+
+def recalculate_slip_deductions(doc, method=None):
+    """Recalculate salary slips when attendance changes."""
+    try:
+        slips = frappe.get_all(
+            "Salary Slip",
+            filters={
+                "employee": doc.employee,
+                "start_date": ["<=", doc.attendance_date],
+                "end_date": [">=", doc.attendance_date],
+                "docstatus": 1,
+            },
+            pluck="name",
+        )
+        for name in slips:
+            slip = frappe.get_doc("Salary Slip", name)
+            slip.deductions = [
+                d
+                for d in getattr(slip, "deductions", [])
+                if (d.get("salary_component") if isinstance(d, dict) else getattr(d, "salary_component", None))
+                != "Absence Deduction"
+            ]
+            if hasattr(slip, "_insert_absence_deduction"):
+                slip._insert_absence_deduction()
+            if hasattr(slip, "calculate_income_tax"):
+                slip.calculate_income_tax()
+            slip.save()
+    except Exception:
+        pass
