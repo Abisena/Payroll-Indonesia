@@ -131,6 +131,11 @@ doc_events = {
         "on_submit": "payroll_indonesia.override.salary_slip.on_submit",
         "on_cancel": "payroll_indonesia.override.salary_slip.on_cancel",
     },
+    "Employee Attendance": {
+        "on_submit": "payroll_indonesia.override.salary_slip.recalculate_slip_deductions",
+        "on_cancel": "payroll_indonesia.override.salary_slip.recalculate_slip_deductions",
+        "on_update": "payroll_indonesia.override.salary_slip.recalculate_slip_deductions",
+    },
 }
 
 # Scheduled Tasks

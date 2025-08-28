@@ -16,6 +16,7 @@ class DummyLogger:
 
 frappe.logger = lambda *a, **k: DummyLogger()
 frappe.get_doc = lambda *a, **k: {}
+frappe.get_all = lambda *a, **k: []
 frappe.throw = lambda *a, **k: None
 frappe.ValidationError = type("ValidationError", (Exception,), {})
 frappe.LinkValidationError = type("LinkValidationError", (Exception,), {})
@@ -36,12 +37,15 @@ utils = types.ModuleType("frappe.utils")
 utils.flt = lambda val, precision=None: float(val)
 utils.getdate = lambda val: datetime.datetime.strptime(str(val), "%Y-%m-%d")
 utils.now = lambda: "2024-01-01 00:00:00"
+utils.nowdate = lambda: "2024-01-01"
+utils.file_lock = lambda *a, **k: None
 
 safe_exec_mod = types.ModuleType("frappe.utils.safe_exec")
 safe_exec_mod.safe_eval = lambda expr, context=None: eval(expr, context or {})
 
 frappe.utils = utils
 frappe.session = types.SimpleNamespace(user="test")
+frappe._dict = lambda d=None, **kwargs: types.SimpleNamespace(**((d or {}) | kwargs))
 
 sys.modules.setdefault("frappe", frappe)
 sys.modules.setdefault("frappe.utils", utils)
