@@ -57,6 +57,12 @@
       "precision": 6
     },
     {
+      "fieldname": "office_locations",
+      "fieldtype": "Table",
+      "label": "Office Locations",
+      "options": "Office Location"
+    },
+    {
       "fieldname": "bpjs_settings_section",
       "fieldtype": "Section Break",
       "label": "BPJS Settings"
