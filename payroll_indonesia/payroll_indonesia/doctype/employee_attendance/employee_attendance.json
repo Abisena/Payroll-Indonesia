@@ -33,7 +33,7 @@
       "fieldname": "status",
       "fieldtype": "Select",
       "label": "Status",
-      "options": "Present\nIzin\nSakit\nTanpa Keterangan",
+      "options": "Present\nAbsent\nOn Leave\nHalf Day\nWork From Home",
       "default": "Present",
       "reqd": 1,
       "in_list_view": 1

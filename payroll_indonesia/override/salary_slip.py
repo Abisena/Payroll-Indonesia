@@ -130,6 +130,7 @@ class CustomSalarySlip(SalarySlip):
                 },
                 fields=["status"],
             )
+
             full_day = {"Izin", "Sakit", "Tanpa Keterangan", "Absent"}
             half_day = {"Half Day"}
             days = 0.0
@@ -140,6 +141,7 @@ class CustomSalarySlip(SalarySlip):
                 elif status in half_day:
                     days += 0.5
             return days
+
         except Exception:
             return 0.0
 
