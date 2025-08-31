@@ -9,6 +9,9 @@ Endpoint: `/api/method/payroll_indonesia.api.attendance.mobile_check_in`
 | `employee` | Data  | ID of the employee        |
 | `latitude` | Float | Current latitude in WGS84 |
 | `longitude`| Float | Current longitude in WGS84|
+| `status`   | Data  | Optional attendance status. Defaults to `Present`. |
+
+Valid values: `Present`, `Absent`, `Half Day`, `On Leave`, `Work From Home`, `Holiday`.
 
 ## Example Request
 
@@ -16,7 +19,8 @@ Endpoint: `/api/method/payroll_indonesia.api.attendance.mobile_check_in`
 curl -X POST https://example.com/api/method/payroll_indonesia.api.attendance.mobile_check_in \
   -d "employee=EMP-0001" \
   -d "latitude=-6.1754" \
-  -d "longitude=106.8272"
+  -d "longitude=106.8272" \
+  -d "status=Work From Home"
 ```
 
 ### Success `200`
