@@ -5,8 +5,17 @@ import frappe
 from payroll_indonesia.override.salary_slip import CustomSalarySlip
 
 
-@pytest.mark.parametrize("status", ["Absent"])
-def test_absence_deduction(monkeypatch, status):
+@pytest.mark.parametrize(
+    "status,expected",
+    [
+        ("Izin", 100.0),
+        ("Sakit", 100.0),
+        ("Tanpa Keterangan", 100.0),
+        ("Absent", 100.0),
+        ("Half Day", 50.0),
+    ],
+)
+def test_absence_deduction(monkeypatch, status, expected):
     slip = CustomSalarySlip()
     slip.name = "SS-TEST"
     slip.employee = "EMP-001"
@@ -38,5 +47,5 @@ def test_absence_deduction(monkeypatch, status):
     ]
     assert deduction, "Absence deduction row not found"
     amount = deduction[0]["amount"] if isinstance(deduction[0], dict) else deduction[0].amount
-    assert amount == pytest.approx(100.0)
+    assert amount == pytest.approx(expected)
 
