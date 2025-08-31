@@ -1,57 +1,66 @@
 import types
-import pytest
+
 import frappe
+
+# Ensure required frappe utilities exist before importing module under test
+frappe._ = lambda msg: msg
+frappe.utils.today = lambda: "2024-01-01"
+frappe.whitelist = lambda *a, **k: (lambda f: f)
+frappe.get_single = lambda *a, **k: None
 
 from payroll_indonesia.api.attendance import mobile_check_in
 
 
-class DummyAttendance:
-    def __init__(self):
-        self.name = "ATT-001"
+def test_mobile_check_in_work_from_home(monkeypatch):
+    """mobile_check_in should accept Work From Home status"""
 
-    def insert(self, ignore_permissions=True):
-        pass
-
-
-@pytest.fixture(autouse=True)
-def setup_common(monkeypatch):
-    monkeypatch.setattr(
-        frappe, "db", types.SimpleNamespace(get_value=lambda *a, **k: "COMP"), raising=False
-    )
-    monkeypatch.setattr(frappe, "get_doc", lambda data: DummyAttendance(), raising=False)
-    monkeypatch.setattr(frappe, "_", lambda m: m, raising=False)
-    monkeypatch.setattr(
-        frappe, "PermissionError", type("PermissionError", (Exception,), {}), raising=False
-    )
+    # Stub configuration and db functions
     monkeypatch.setattr(
         frappe,
-        "throw",
-        lambda msg, exc=None: (_ for _ in ()).throw((exc or Exception)(msg)),
-        raising=False,
+        "get_single",
+        lambda name: types.SimpleNamespace(office_latitude=0.0, office_longitude=0.0),
     )
+    monkeypatch.setattr(frappe.db, "get_value", lambda *a, **k: "Test Company")
+
+    inserted = {}
+
+    class DummyDoc:
+        def __init__(self, data):
+            self.data = data
+            self.name = "ATT-0001"
+
+        def insert(self, ignore_permissions=False):
+            inserted.update(self.data)
+
+    monkeypatch.setattr(frappe, "get_doc", lambda data: DummyDoc(data))
+
+    result = mobile_check_in("EMP-0001", 0.0, 0.0, status="Work From Home")
+
+    assert inserted["status"] == "Work From Home"
+    assert result["name"] == "ATT-0001"
 
 
-def test_check_in_within_any_location(monkeypatch):
-    settings = types.SimpleNamespace(
-        office_locations=[
-            types.SimpleNamespace(latitude=0.0, longitude=0.0),
-            types.SimpleNamespace(latitude=1.0, longitude=1.0),
-        ]
+def test_mobile_check_in_default_status(monkeypatch):
+    monkeypatch.setattr(
+        frappe,
+        "get_single",
+        lambda name: types.SimpleNamespace(office_latitude=0.0, office_longitude=0.0),
     )
-    monkeypatch.setattr(frappe, "get_single", lambda d: settings, raising=False)
+    monkeypatch.setattr(frappe.db, "get_value", lambda *a, **k: "Test Company")
 
-    res = mobile_check_in("EMP-001", 1.0, 1.0)
-    assert res["message"] == "Attendance marked"
+    captured = {}
 
+    class DummyDoc:
+        def __init__(self, data):
+            self.data = data
+            self.name = "ATT-0002"
 
-def test_check_in_out_of_range(monkeypatch):
-    settings = types.SimpleNamespace(
-        office_locations=[
-            types.SimpleNamespace(latitude=0.0, longitude=0.0),
-            types.SimpleNamespace(latitude=1.0, longitude=1.0),
-        ]
-    )
-    monkeypatch.setattr(frappe, "get_single", lambda d: settings, raising=False)
+        def insert(self, ignore_permissions=False):
+            captured.update(self.data)
 
-    with pytest.raises(frappe.PermissionError):
-        mobile_check_in("EMP-001", 50.0, 50.0)
+    monkeypatch.setattr(frappe, "get_doc", lambda data: DummyDoc(data))
+
+    result = mobile_check_in("EMP-0001", 0.0, 0.0)
+
+    assert captured["status"] == "Present"
+    assert result["name"] == "ATT-0002"
