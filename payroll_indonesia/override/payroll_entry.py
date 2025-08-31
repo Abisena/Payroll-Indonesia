@@ -15,7 +15,7 @@ from typing import Callable, Dict, List, Any, Optional, Tuple
 from payroll_indonesia.override.salary_slip import CustomSalarySlip
 from payroll_indonesia.config import get_value
 from payroll_indonesia.utils.sync_annual_payroll_history import sync_annual_payroll_history
-from frappe.utils import file_lock
+from frappe.utils import file_lock, getdate
 import os
 import time
 from datetime import datetime, timedelta
@@ -30,7 +30,17 @@ class CustomPayrollEntry(PayrollEntry):
     Override salary slip creation to use CustomSalarySlip with PPh21 TER/Desember logic.
     """
 
+    def _ensure_default_period(self) -> None:
+        """Populate start and end dates from posting_date if missing."""
+        if getattr(self, "posting_date", None):
+            posting = getdate(self.posting_date)
+            if not getattr(self, "start_date", None):
+                self.start_date = posting.replace(day=1).strftime("%Y-%m-%d")
+            if not getattr(self, "end_date", None):
+                self.end_date = posting.strftime("%Y-%m-%d")
+
     def validate(self):
+        self._ensure_default_period()
         super().validate()
         # Payroll Indonesia custom validation
         if getattr(self, "run_payroll_indonesia", False):
@@ -54,6 +64,7 @@ class CustomPayrollEntry(PayrollEntry):
         Override: generate salary slips with Indonesian tax logic.
         """
         try:
+            self._ensure_default_period()
             # Clean up any existing salary slips before creating new ones
             # This prevents duplicate salary slip errors when retrying after cancel
             self.delete_salary_slips(force_cleanup=True)
@@ -244,6 +255,12 @@ class CustomPayrollEntry(PayrollEntry):
                 continue
 
             try:
+                # Ensure slip has period dates before tax calculation
+                if not getattr(slip_obj, "start_date", None):
+                    slip_obj.start_date = getattr(self, "start_date", None)
+                if not getattr(slip_obj, "end_date", None):
+                    slip_obj.end_date = getattr(self, "end_date", None)
+
                 # Apply the provided tax calculation function
                 tax_calculator(slip_obj)
                 
