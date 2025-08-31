@@ -34,3 +34,8 @@ curl -X POST https://example.com/api/method/payroll_indonesia.api.attendance.mob
 ```json
 {"exc": "frappe.PermissionError: Check-in location too far from office"}
 ```
+
+## Notes
+
+- Multiple office coordinates can be configured in **Payroll Indonesia Settings** under *Office Locations*.
+- A check-in is considered valid when the device is within **10 meters** of any configured location.

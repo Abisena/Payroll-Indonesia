@@ -1,0 +1,26 @@
+{
+  "doctype": "DocType",
+  "name": "Office Location",
+  "module": "Payroll Indonesia",
+  "istable": 1,
+  "custom": 1,
+  "fields": [
+    {
+      "fieldname": "latitude",
+      "fieldtype": "Float",
+      "label": "Latitude",
+      "in_list_view": 1,
+      "reqd": 1,
+      "precision": 6
+    },
+    {
+      "fieldname": "longitude",
+      "fieldtype": "Float",
+      "label": "Longitude",
+      "in_list_view": 1,
+      "reqd": 1,
+      "precision": 6
+    }
+  ],
+  "modified": "2024-01-01 00:00:00"
+}

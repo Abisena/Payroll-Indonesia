@@ -107,11 +107,20 @@ class CustomSalarySlip(SalarySlip):
     # -------------------------
     # Absence deduction
     # -------------------------
-    def _get_unpaid_absent_days(self) -> int:
-        """Count attendance records that should result in salary deduction."""
+    def _get_unpaid_absent_days(self) -> float:
+        """Count attendance records that should result in salary deduction.
+
+        Supports half-day deductions by returning a float. The following
+        statuses are considered:
+
+        * ``Absent`` – full day (1.0)
+        * ``Half Day`` – half day (0.5)
+        * ``Izin``, ``Sakit`` and ``Tanpa Keterangan`` – full day (1.0)
+        * ``On Leave`` and ``Work From Home`` – paid (0.0)
+        """
         try:
             if not (getattr(self, "employee", None) and getattr(self, "start_date", None) and getattr(self, "end_date", None)):
-                return 0
+                return 0.0
             rows = frappe.get_all(
                 "Employee Attendance",
                 filters={
@@ -121,10 +130,20 @@ class CustomSalarySlip(SalarySlip):
                 },
                 fields=["status"],
             )
-            unpaid = {"Izin", "Sakit", "Tanpa Keterangan"}
-            return sum(1 for r in rows if r.get("status") in unpaid)
+
+            full_day = {"Izin", "Sakit", "Tanpa Keterangan", "Absent"}
+            half_day = {"Half Day"}
+            days = 0.0
+            for r in rows:
+                status = r.get("status")
+                if status in full_day:
+                    days += 1.0
+                elif status in half_day:
+                    days += 0.5
+            return days
+
         except Exception:
-            return 0
+            return 0.0
 
     def _insert_absence_deduction(self):
         days = self._get_unpaid_absent_days()
@@ -134,7 +153,7 @@ class CustomSalarySlip(SalarySlip):
             daily_rate = flt(getattr(self, "base", 0)) / flt(getattr(self, "total_working_days", 1) or 1)
         except Exception:
             daily_rate = 0
-        amount = days * daily_rate
+        amount = flt(days) * daily_rate
         if not getattr(self, "deductions", None):
             self.deductions = []
         self.deductions.append(frappe._dict({"salary_component": "Absence Deduction", "amount": amount}))
@@ -751,7 +770,7 @@ def on_cancel(doc, method=None):
 
 
 def recalculate_slip_deductions(doc, method=None):
-    """Recalculate salary slips when attendance changes."""
+    """Recalculate salary slips when attendance changes, including fractional days."""
     try:
         slips = frappe.get_all(
             "Salary Slip",

@@ -2,8 +2,22 @@ import math
 from enum import Enum
 
 import frappe
-from frappe import _
-from frappe.utils import today
+try:
+    from frappe.utils import today
+except Exception:  # pragma: no cover - fallback when frappe.utils is unavailable
+    from datetime import date
+
+    def today() -> str:  # type: ignore
+        return date.today().isoformat()
+
+if not hasattr(frappe, "whitelist"):
+    def whitelist(*_args, **_kwargs):  # type: ignore
+        def decorator(fn):
+            return fn
+
+        return decorator
+
+    frappe.whitelist = whitelist  # type: ignore
 
 
 class AttendanceStatus(str, Enum):
@@ -33,17 +47,29 @@ def mobile_check_in(
 ):
     """Validate employee proximity to office and create an attendance record."""
     settings = frappe.get_single("Payroll Indonesia Settings")
-    if not (settings.office_latitude and settings.office_longitude):
-        frappe.throw(_("Office coordinates are not set"))
 
-    distance = _haversine(
-        float(latitude),
-        float(longitude),
-        float(settings.office_latitude),
-        float(settings.office_longitude),
-    )
-    if distance > 25:
-        frappe.throw(_("Check-in location too far from office"), frappe.PermissionError)
+    coordinates = []
+    if getattr(settings, "office_locations", None):
+        coordinates = settings.office_locations
+    elif settings.office_latitude and settings.office_longitude:
+        coordinates = [frappe._dict(latitude=settings.office_latitude, longitude=settings.office_longitude)]
+    else:
+        frappe.throw(frappe._("Office coordinates are not set"))
+
+    within_range = False
+    for loc in coordinates:
+        distance = _haversine(
+            float(latitude),
+            float(longitude),
+            float(loc.latitude),
+            float(loc.longitude),
+        )
+        if distance <= 10:
+            within_range = True
+            break
+
+    if not within_range:
+        frappe.throw(frappe._("Check-in location too far from office"), frappe.PermissionError)
 
     company = frappe.db.get_value("Employee", employee, "company")
     status_value = status or AttendanceStatus.PRESENT.value
@@ -62,4 +88,4 @@ def mobile_check_in(
         }
     )
     attendance.insert(ignore_permissions=True)
-    return {"message": _("Attendance marked"), "name": attendance.name}
+    return {"message": frappe._("Attendance marked"), "name": attendance.name}
