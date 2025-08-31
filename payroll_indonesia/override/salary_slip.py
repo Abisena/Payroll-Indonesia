@@ -121,7 +121,7 @@ class CustomSalarySlip(SalarySlip):
                 },
                 fields=["status"],
             )
-            unpaid = {"Izin", "Sakit", "Tanpa Keterangan"}
+            unpaid = {"Absent"}
             return sum(1 for r in rows if r.get("status") in unpaid)
         except Exception:
             return 0

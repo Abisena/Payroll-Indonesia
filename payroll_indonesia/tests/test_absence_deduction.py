@@ -5,7 +5,7 @@ import frappe
 from payroll_indonesia.override.salary_slip import CustomSalarySlip
 
 
-@pytest.mark.parametrize("status", ["Izin", "Sakit", "Tanpa Keterangan"])
+@pytest.mark.parametrize("status", ["Absent"])
 def test_absence_deduction(monkeypatch, status):
     slip = CustomSalarySlip()
     slip.name = "SS-TEST"
