@@ -30,13 +30,18 @@
       "type": "Report"
     },
     {
-      "label": "Annual Payroll History",
-      "link_to": "Annual Payroll History",
+      "label": "Salary Component",
+      "link_to": "Salary Component",
       "type": "DocType"
     },
     {
-      "label": "Annual Payroll History Child",
-      "link_to": "Annual Payroll History Child",
+      "label": "Salary Structure",
+      "link_to": "Salary Structure",
+      "type": "DocType"
+    },
+    {
+      "label": "Annual Payroll History",
+      "link_to": "Annual Payroll History",
       "type": "DocType"
     },
     {
@@ -45,28 +50,8 @@
       "type": "DocType"
     },
     {
-      "label": "Office Location",
-      "link_to": "Office Location",
-      "type": "DocType"
-    },
-    {
-      "label": "PTKP Table",
-      "link_to": "PTKP Table",
-      "type": "DocType"
-    },
-    {
       "label": "Payroll Indonesia Settings",
       "link_to": "Payroll Indonesia Settings",
-      "type": "DocType"
-    },
-    {
-      "label": "TER Bracket Table",
-      "link_to": "TER Bracket Table",
-      "type": "DocType"
-    },
-    {
-      "label": "TER Mapping Table",
-      "link_to": "TER Mapping Table",
       "type": "DocType"
     }
   ],
