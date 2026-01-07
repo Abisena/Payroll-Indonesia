@@ -1,69 +1,71 @@
-{
-  "doctype": "Workspace",
-  "name": "Payroll Indonesia",
-  "title": "Payroll Indonesia",
-  "label": "Payroll Indonesia",
-  "icon": "income",
-  "module": "Payroll Indonesia",
-  "content_type": "Blocks",
-  "content": "[{\"id\":\"hdr1\",\"type\":\"header\",\"data\":{\"text\":\"Payroll Indonesia\",\"col\":12}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Slip\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Entry\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Register\",\"col\":3}},{\"id\":\"s4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Annual Payroll History\",\"col\":3}},{\"id\":\"s5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Indonesia Settings\",\"col\":3}},{\"id\":\"s6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Structure\",\"col\":3}},{\"id\":\"s7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Component\",\"col\":3}},{\"id\":\"s8\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"id\":\"s9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Structure Assignment\",\"col\":3}},{\"id\":\"spacer1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c1\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Employee\",\"link_to\":\"Employee\",\"type\":\"DocType\"},{\"label\":\"Salary Component\",\"link_to\":\"Salary Component\",\"type\":\"DocType\"},{\"label\":\"Salary Structure\",\"link_to\":\"Salary Structure\",\"type\":\"DocType\"}]}},{\"id\":\"spacer2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c2\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Payroll Entry\",\"link_to\":\"Payroll Entry\",\"type\":\"DocType\"},{\"label\":\"Salary Slip\",\"link_to\":\"Salary Slip\",\"type\":\"DocType\"},{\"label\":\"Annual Payroll History\",\"link_to\":\"Annual Payroll History\",\"type\":\"DocType\"}]}},{\"id\":\"spacer3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c3\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Additional Salary\",\"link_to\":\"Additional Salary\",\"type\":\"DocType\"},{\"label\":\"Salary Structure Assignment\",\"link_to\":\"Salary Structure Assignment\",\"type\":\"DocType\"}]}},{\"id\":\"spacer4\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c4\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Journal Entry\",\"link_to\":\"Journal Entry\",\"type\":\"DocType\"},{\"label\":\"Payroll Indonesia Settings\",\"link_to\":\"Payroll Indonesia Settings\",\"type\":\"DocType\"}]}},{\"id\":\"spacer5\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c5\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"General Ledger\",\"link_to\":\"General Ledger\",\"type\":\"Report\"},{\"label\":\"Bank Reconciliation Statement\",\"link_to\":\"Bank Reconciliation Statement\",\"type\":\"Report\"}]}},{\"id\":\"c6\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Salary Register\",\"link_to\":\"Salary Register\",\"type\":\"Report\"},{\"label\":\"PPh21 Report\",\"link_to\":\"PPh21 Report\",\"type\":\"Report\"},{\"label\":\"BPJS Report\",\"link_to\":\"BPJS Report\",\"type\":\"Report\"}]}},{\"id\":\"spacer6\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c7\",\"type\":\"card\",\"data\":{\"col\":12,\"links\":[{\"label\":\"Annual Payroll History Child\",\"link_to\":\"Annual Payroll History Child\",\"type\":\"DocType\"},{\"label\":\"Employee Attendance\",\"link_to\":\"Employee Attendance\",\"type\":\"DocType\"},{\"label\":\"PTKP Table\",\"link_to\":\"PTKP Table\",\"type\":\"DocType\"},{\"label\":\"Office Location\",\"link_to\":\"Office Location\",\"type\":\"DocType\"},{\"label\":\"TER Bracket Table\",\"link_to\":\"TER Bracket Table\",\"type\":\"DocType\"},{\"label\":\"TER Mapping Table\",\"link_to\":\"TER Mapping Table\",\"type\":\"DocType\"}]}}]",
-  "public": 1,
-  "sequence": 10,
-  "is_hidden": 0,
-  "hide_custom": 0,
-  "for_user": "",
-  "roles": [],
-  "shortcuts": [
-    {
-      "label": "Salary Slip",
-      "link_to": "Salary Slip",
-      "type": "DocType"
-    },
-    {
-      "label": "Payroll Entry",
-      "link_to": "Payroll Entry",
-      "type": "DocType"
-    },
-    {
-      "label": "Salary Register",
-      "link_to": "Salary Register",
-      "type": "Report"
-    },
-    {
-      "label": "Annual Payroll History",
-      "link_to": "Annual Payroll History",
-      "type": "DocType"
-    },
-    {
-      "label": "Payroll Indonesia Settings",
-      "link_to": "Payroll Indonesia Settings",
-      "type": "DocType"
-    },
-    {
-      "label": "Salary Structure",
-      "link_to": "Salary Structure",
-      "type": "DocType"
-    },
-    {
-      "label": "Salary Component",
-      "link_to": "Salary Component",
-      "type": "DocType"
-    },
-    {
-      "label": "Employee",
-      "link_to": "Employee",
-      "type": "DocType"
-    },
-    {
-      "label": "Salary Structure Assignment",
-      "link_to": "Salary Structure Assignment",
-      "type": "DocType"
-    }
-  ],
-  "cards": [],
-  "custom_blocks": [],
-  "links": [],
-  "charts": [],
-  "quick_lists": [],
-  "number_cards": []
-}
+[
+  {
+    "doctype": "Workspace",
+    "name": "Payroll Indonesia",
+    "title": "Payroll Indonesia",
+    "label": "Payroll Indonesia",
+    "icon": "income",
+    "module": "Payroll Indonesia",
+    "content_type": "Blocks",
+    "content": "[{\"id\":\"hdr1\",\"type\":\"header\",\"data\":{\"text\":\"Payroll Indonesia\",\"col\":12}},{\"id\":\"s1\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Slip\",\"col\":3}},{\"id\":\"s2\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Entry\",\"col\":3}},{\"id\":\"s3\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Register\",\"col\":3}},{\"id\":\"s4\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Annual Payroll History\",\"col\":3}},{\"id\":\"s5\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Indonesia Settings\",\"col\":3}},{\"id\":\"s6\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Structure\",\"col\":3}},{\"id\":\"s7\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Component\",\"col\":3}},{\"id\":\"s8\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"id\":\"s9\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Salary Structure Assignment\",\"col\":3}},{\"id\":\"spacer1\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c1\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Employee\",\"link_to\":\"Employee\",\"type\":\"DocType\"},{\"label\":\"Salary Component\",\"link_to\":\"Salary Component\",\"type\":\"DocType\"},{\"label\":\"Salary Structure\",\"link_to\":\"Salary Structure\",\"type\":\"DocType\"}]}},{\"id\":\"spacer2\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c2\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Payroll Entry\",\"link_to\":\"Payroll Entry\",\"type\":\"DocType\"},{\"label\":\"Salary Slip\",\"link_to\":\"Salary Slip\",\"type\":\"DocType\"},{\"label\":\"Annual Payroll History\",\"link_to\":\"Annual Payroll History\",\"type\":\"DocType\"}]}},{\"id\":\"spacer3\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c3\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Additional Salary\",\"link_to\":\"Additional Salary\",\"type\":\"DocType\"},{\"label\":\"Salary Structure Assignment\",\"link_to\":\"Salary Structure Assignment\",\"type\":\"DocType\"}]}},{\"id\":\"spacer4\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c4\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Journal Entry\",\"link_to\":\"Journal Entry\",\"type\":\"DocType\"},{\"label\":\"Payroll Indonesia Settings\",\"link_to\":\"Payroll Indonesia Settings\",\"type\":\"DocType\"}]}},{\"id\":\"spacer5\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c5\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"General Ledger\",\"link_to\":\"General Ledger\",\"type\":\"Report\"},{\"label\":\"Bank Reconciliation Statement\",\"link_to\":\"Bank Reconciliation Statement\",\"type\":\"Report\"}]}},{\"id\":\"c6\",\"type\":\"card\",\"data\":{\"col\":6,\"links\":[{\"label\":\"Salary Register\",\"link_to\":\"Salary Register\",\"type\":\"Report\"},{\"label\":\"PPh21 Report\",\"link_to\":\"PPh21 Report\",\"type\":\"Report\"},{\"label\":\"BPJS Report\",\"link_to\":\"BPJS Report\",\"type\":\"Report\"}]}},{\"id\":\"spacer6\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"c7\",\"type\":\"card\",\"data\":{\"col\":12,\"links\":[{\"label\":\"Annual Payroll History Child\",\"link_to\":\"Annual Payroll History Child\",\"type\":\"DocType\"},{\"label\":\"Employee Attendance\",\"link_to\":\"Employee Attendance\",\"type\":\"DocType\"},{\"label\":\"PTKP Table\",\"link_to\":\"PTKP Table\",\"type\":\"DocType\"},{\"label\":\"Office Location\",\"link_to\":\"Office Location\",\"type\":\"DocType\"},{\"label\":\"TER Bracket Table\",\"link_to\":\"TER Bracket Table\",\"type\":\"DocType\"},{\"label\":\"TER Mapping Table\",\"link_to\":\"TER Mapping Table\",\"type\":\"DocType\"}]}}]",
+    "public": 1,
+    "sequence": 10,
+    "is_hidden": 0,
+    "hide_custom": 0,
+    "for_user": "",
+    "roles": [],
+    "shortcuts": [
+      {
+        "label": "Salary Slip",
+        "link_to": "Salary Slip",
+        "type": "DocType"
+      },
+      {
+        "label": "Payroll Entry",
+        "link_to": "Payroll Entry",
+        "type": "DocType"
+      },
+      {
+        "label": "Salary Register",
+        "link_to": "Salary Register",
+        "type": "Report"
+      },
+      {
+        "label": "Annual Payroll History",
+        "link_to": "Annual Payroll History",
+        "type": "DocType"
+      },
+      {
+        "label": "Payroll Indonesia Settings",
+        "link_to": "Payroll Indonesia Settings",
+        "type": "DocType"
+      },
+      {
+        "label": "Salary Structure",
+        "link_to": "Salary Structure",
+        "type": "DocType"
+      },
+      {
+        "label": "Salary Component",
+        "link_to": "Salary Component",
+        "type": "DocType"
+      },
+      {
+        "label": "Employee",
+        "link_to": "Employee",
+        "type": "DocType"
+      },
+      {
+        "label": "Salary Structure Assignment",
+        "link_to": "Salary Structure Assignment",
+        "type": "DocType"
+      }
+    ],
+    "cards": [],
+    "custom_blocks": [],
+    "links": [],
+    "charts": [],
+    "quick_lists": [],
+    "number_cards": []
+  }
+]
