@@ -249,5 +249,17 @@ fixtures = [
                 ]
             ]
         ]
+    },
+    {
+        "doctype": "Print Format",
+        "filters": [
+            [
+                "name",
+                "in",
+                [
+                    "Slip Gaji Payroll Indonesia"
+                ]
+            ]
+        ]
     }
 ]

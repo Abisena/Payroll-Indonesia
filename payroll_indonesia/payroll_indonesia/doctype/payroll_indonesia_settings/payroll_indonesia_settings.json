@@ -245,6 +245,23 @@
       "label": "Fallback Income Tax Slab",
       "options": "Income Tax Slab",
       "description": "Digunakan jika tax_status tidak ditemukan"
+    },
+    {
+      "fieldname": "print_format_settings_section",
+      "fieldtype": "Section Break",
+      "label": "Print Format Settings"
+    },
+    {
+      "fieldname": "authorized_signatory",
+      "fieldtype": "Data",
+      "label": "Authorized Signatory Name",
+      "description": "Nama penandatangan slip gaji (default: HRD Manager)"
+    },
+    {
+      "fieldname": "authorized_signatory_designation",
+      "fieldtype": "Data",
+      "label": "Authorized Signatory Designation",
+      "description": "Jabatan penandatangan slip gaji (default: Human Resources)"
     }
   ],
   "permissions": [
