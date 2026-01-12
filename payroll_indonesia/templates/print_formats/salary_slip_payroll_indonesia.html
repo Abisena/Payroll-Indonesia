@@ -1,8 +1,8 @@
-{% set pph = json.loads(doc.pph21_info or "{}") %}
-{% set employee_doc = frappe.get_doc("Employee", doc.employee) %}
-{% set settings = frappe.get_single("Payroll Indonesia Settings") %}
-{% set signatory_name = settings.get("authorized_signatory") or "HRD Manager" %}
-{% set signatory_designation = settings.get("authorized_signatory_designation") or "Human Resources" %}
+{%- set pph = frappe.utils.parse_json(doc.pph21_info) if doc.pph21_info else {} -%}
+{%- set employee_doc = frappe.get_doc("Employee", doc.employee) -%}
+{%- set settings = frappe.get_single("Payroll Indonesia Settings") -%}
+{%- set signatory_name = settings.get("authorized_signatory") or "HRD Manager" -%}
+{%- set signatory_designation = settings.get("authorized_signatory_designation") or "Human Resources" -%}
 
 <style>
   .slip-container {
@@ -50,7 +50,7 @@
   </h3>
   <div class="text-center" style="margin-bottom:10px; font-size:10pt;">
     <strong>{{ doc.company }}</strong><br>
-    Periode: {{ frappe.utils.formatdate(doc.start_date, "dd MMM yyyy") }} s/d {{ frappe.utils.formatdate(doc.end_date, "dd MMM yyyy") }}
+    Periode: {{ frappe.format(doc.start_date, {'fieldtype': 'Date'}) }} s/d {{ frappe.format(doc.end_date, {'fieldtype': 'Date'}) }}
   </div>
 
   <!-- INFO KARYAWAN -->
@@ -75,7 +75,7 @@
     </tr>
     <tr>
       <td>Periode Gaji</td>
-      <td>: {{ frappe.utils.formatdate(doc.start_date, "dd/MM/yyyy") }} - {{ frappe.utils.formatdate(doc.end_date, "dd/MM/yyyy") }}</td>
+      <td>: {{ frappe.format(doc.start_date, {'fieldtype': 'Date'}) }} - {{ frappe.format(doc.end_date, {'fieldtype': 'Date'}) }}</td>
       <td>Metode Pajak</td>
       <td>: {{ doc.tax_type or "TER" }}</td>
     </tr>
@@ -98,7 +98,7 @@
           <tr>
             <td>{{ row.salary_component }}</td>
             <td class="text-right">
-              {{ "{:,.0f}".format(row.amount | float) }}
+              {{ frappe.format(row.amount, {'fieldtype': 'Currency'}) }}
             </td>
           </tr>
         {% endif %}
@@ -112,7 +112,7 @@
     <tfoot>
       <tr class="summary-row">
         <td>Total Pendapatan</td>
-        <td class="text-right">{{ "{:,.0f}".format(doc.gross_pay | float) }}</td>
+        <td class="text-right">{{ frappe.format(doc.gross_pay, {'fieldtype': 'Currency'}) }}</td>
       </tr>
     </tfoot>
   </table>
@@ -134,7 +134,7 @@
           <tr>
             <td>{{ row.salary_component }}</td>
             <td class="text-right">
-              {{ "{:,.0f}".format(row.amount | float) }}
+              {{ frappe.format(row.amount, {'fieldtype': 'Currency'}) }}
             </td>
           </tr>
         {% endif %}
@@ -148,7 +148,7 @@
     <tfoot>
       <tr class="summary-row">
         <td>Total Potongan</td>
-        <td class="text-right">{{ "{:,.0f}".format(doc.total_deduction | float) }}</td>
+        <td class="text-right">{{ frappe.format(doc.total_deduction, {'fieldtype': 'Currency'}) }}</td>
       </tr>
     </tfoot>
   </table>
@@ -159,19 +159,19 @@
     <tr>
       <td style="width:50%;">Total Pendapatan</td>
       <td style="width:50%;" class="text-right">
-        {{ "{:,.0f}".format(doc.gross_pay | float) }}
+        {{ frappe.format(doc.gross_pay, {'fieldtype': 'Currency'}) }}
       </td>
     </tr>
     <tr>
       <td>Total Potongan</td>
       <td class="text-right">
-        {{ "{:,.0f}".format(doc.total_deduction | float) }}
+        {{ frappe.format(doc.total_deduction, {'fieldtype': 'Currency'}) }}
       </td>
     </tr>
     <tr style="border-top: 2px solid #000;">
       <td><strong>Gaji Bersih (Take Home Pay)</strong></td>
       <td class="text-right">
-        <strong style="font-size:11pt;">{{ "{:,.0f}".format(doc.net_pay | float) }}</strong>
+        <strong style="font-size:11pt;">{{ frappe.format(doc.net_pay, {'fieldtype': 'Currency'}) }}</strong>
       </td>
     </tr>
     <tr>
@@ -188,7 +188,7 @@
       <tr>
         <td style="width:70%;">PPh21 bulan ini</td>
         <td style="width:30%;" class="text-right">
-          {{ "{:,.0f}".format(doc.tax | float) }}
+          {{ frappe.format(doc.tax or 0, {'fieldtype': 'Currency'}) }}
         </td>
       </tr>
 
@@ -200,19 +200,19 @@
         <tr>
           <td style="padding-left:15px;">PPh21 dipotong s/d Nov (YTD sebelum Des)</td>
           <td class="text-right">
-            {{ "{:,.0f}".format((pph.pph21_paid_jan_nov or 0) | float) }}
+            {{ frappe.format(pph.pph21_paid_jan_nov or 0, {'fieldtype': 'Currency'}) }}
           </td>
         </tr>
         <tr>
           <td style="padding-left:15px;">PPh21 koreksi Desember</td>
           <td class="text-right">
-            {{ "{:,.0f}".format((pph.pph21_bulan or doc.tax or 0) | float) }}
+            {{ frappe.format(pph.pph21_bulan or doc.tax or 0, {'fieldtype': 'Currency'}) }}
           </td>
         </tr>
         <tr style="font-weight:bold;">
           <td style="padding-left:15px;">Total PPh21 setahun (YTD akhir)</td>
           <td class="text-right">
-            {{ "{:,.0f}".format((pph.pph21_annual or 0) | float) }}
+            {{ frappe.format(pph.pph21_annual or 0, {'fieldtype': 'Currency'}) }}
           </td>
         </tr>
       {% endif %}
