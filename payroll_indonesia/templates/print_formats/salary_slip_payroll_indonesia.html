@@ -1,4 +1,4 @@
-{% set pph = frappe.parse_json(doc.pph21_info or "{}") %}
+{% set pph = frappe.utils.parse_json(doc.pph21_info or "{}") %}
 {% set employee_doc = frappe.get_doc("Employee", doc.employee) %}
 {% set settings = frappe.get_single("Payroll Indonesia Settings") %}
 {% set signatory_name = settings.get("authorized_signatory") or "HRD Manager" %}
