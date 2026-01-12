@@ -26,10 +26,8 @@ def validate_salary_structure_required_components(doc, method):
     earning_names = [e.salary_component for e in getattr(doc, "earnings", [])]
     deduction_names = [d.salary_component for d in getattr(doc, "deductions", [])]
 
-    found_bpjs = (
-        any(comp in earning_names for comp in bpjs_employer) or
-        any(comp in deduction_names for comp in bpjs_employee)
-    )
+    all_bpjs_components = set(bpjs_employer + bpjs_employee + contra_bpjs_employer)
+    found_bpjs = any(comp in all_bpjs_components for comp in earning_names + deduction_names)
 
     if found_bpjs:
         missing_bpjs_employer = [comp for comp in bpjs_employer if comp not in earning_names]
