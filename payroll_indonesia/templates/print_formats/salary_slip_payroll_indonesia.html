@@ -1,5 +1,5 @@
 {%- set employee_doc = frappe.get_doc("Employee", doc.employee) -%}
-{%- set settings = frappe.get_single("Payroll Indonesia Settings") -%}
+{%- set settings = frappe.get_doc("Payroll Indonesia Settings", "Payroll Indonesia Settings") -%}
 {%- set signatory_name = settings.get("authorized_signatory") or "HRD Manager" -%}
 {%- set signatory_designation = settings.get("authorized_signatory_designation") or "Human Resources" -%}
 
