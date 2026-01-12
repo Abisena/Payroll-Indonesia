@@ -1,4 +1,3 @@
-{%- set pph = (doc.pph21_info | loads) if doc.pph21_info else {} -%}
 {%- set employee_doc = frappe.get_doc("Employee", doc.employee) -%}
 {%- set settings = frappe.get_single("Payroll Indonesia Settings") -%}
 {%- set signatory_name = settings.get("authorized_signatory") or "HRD Manager" -%}
@@ -191,31 +190,6 @@
           {{ frappe.format(doc.tax or 0, {'fieldtype': 'Currency'}) }}
         </td>
       </tr>
-
-      {# Khusus slip Desember (tax_type = DECEMBER), tampilkan YTD #}
-      {% if doc.tax_type == "DECEMBER" and pph %}
-        <tr style="background-color: #fffacd;">
-          <td colspan="2"><strong>Informasi Tahunan (Desember)</strong></td>
-        </tr>
-        <tr>
-          <td style="padding-left:15px;">PPh21 dipotong s/d Nov (YTD sebelum Des)</td>
-          <td class="text-right">
-            {{ frappe.format(pph.pph21_paid_jan_nov or 0, {'fieldtype': 'Currency'}) }}
-          </td>
-        </tr>
-        <tr>
-          <td style="padding-left:15px;">PPh21 koreksi Desember</td>
-          <td class="text-right">
-            {{ frappe.format(pph.pph21_bulan or doc.tax or 0, {'fieldtype': 'Currency'}) }}
-          </td>
-        </tr>
-        <tr style="font-weight:bold;">
-          <td style="padding-left:15px;">Total PPh21 setahun (YTD akhir)</td>
-          <td class="text-right">
-            {{ frappe.format(pph.pph21_annual or 0, {'fieldtype': 'Currency'}) }}
-          </td>
-        </tr>
-      {% endif %}
     </tbody>
   </table>
 
