@@ -27,8 +27,6 @@ def validate_salary_structure_required_components(doc, method):
         if "BPJS JP Employee" not in deduction_names:
             missing_components.append("BPJS JP Employee")
     
-    # BPJS JKK dan JKM tidak perlu validasi karena tidak ada Employee component
-    
     # Validasi PPh 21 - hanya jika ada komponen taxable
     has_taxable = any(
         e.salary_component for e in getattr(doc, "earnings", [])
