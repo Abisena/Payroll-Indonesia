@@ -1,0 +1,1332 @@
+[
+ {
+  "authorized_signatory": null,
+  "authorized_signatory_designation": null,
+  "auto_queue_salary_slip": 0,
+  "biaya_jabatan_cap": 6000000.0,
+  "biaya_jabatan_rate": 5.0,
+  "bpjs_health_employee_cap": 12000000.0,
+  "bpjs_health_employee_rate": 1.0,
+  "bpjs_health_employer_cap": 12000000.0,
+  "bpjs_health_employer_rate": 4.0,
+  "bpjs_jht_employee_cap": 9077600.0,
+  "bpjs_jht_employee_rate": 2.0,
+  "bpjs_jht_employer_cap": 9077600.0,
+  "bpjs_jht_employer_rate": 3.7,
+  "bpjs_jkk_cap": 9077600.0,
+  "bpjs_jkk_rate": 0.24,
+  "bpjs_jkm_cap": 9077600.0,
+  "bpjs_jkm_rate": 0.3,
+  "bpjs_pension_employee_cap": 9077600.0,
+  "bpjs_pension_employee_rate": 1.0,
+  "bpjs_pension_employer_cap": 9077600.0,
+  "bpjs_pension_employer_rate": 2.0,
+  "docstatus": 0,
+  "doctype": "Payroll Indonesia Settings",
+  "fallback_income_tax_slab": null,
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "Payroll Indonesia Settings",
+  "pph21_method": "TER",
+  "ptkp_table": [
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 54000000.0,
+    "tax_status": "TK/0"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 58500000.0,
+    "tax_status": "TK/1"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 63000000.0,
+    "tax_status": "TK/2"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 67500000.0,
+    "tax_status": "TK/3"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 58500000.0,
+    "tax_status": "K/0"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 63000000.0,
+    "tax_status": "K/1"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 67500000.0,
+    "tax_status": "K/2"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 72000000.0,
+    "tax_status": "K/3"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 58500000.0,
+    "tax_status": "HB/0"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 63000000.0,
+    "tax_status": "HB/1"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 67500000.0,
+    "tax_status": "HB/2"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ptkp_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "ptkp_amount": 72000000.0,
+    "tax_status": "HB/3"
+   }
+  ],
+  "salary_slip_use_component_cache": 1,
+  "ter_bracket_table": [
+   {
+    "max_income": 5400000.0,
+    "min_income": 0.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 5650000.0,
+    "min_income": 5400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.25,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 5950000.0,
+    "min_income": 5650001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.5,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 6300000.0,
+    "min_income": 5950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.75,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 6750000.0,
+    "min_income": 6300001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 7500000.0,
+    "min_income": 6750001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.25,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 8550000.0,
+    "min_income": 7500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.5,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 9650000.0,
+    "min_income": 8550001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.75,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 10050000.0,
+    "min_income": 9650001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 2.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 10350000.0,
+    "min_income": 10050001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 2.25,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 10700000.0,
+    "min_income": 10350001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 2.5,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 11050000.0,
+    "min_income": 10700001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 3.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 11600000.0,
+    "min_income": 11050001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 3.5,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 12500000.0,
+    "min_income": 11600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 4.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 13750000.0,
+    "min_income": 12500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 5.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 15100000.0,
+    "min_income": 13750001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 6.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 16950000.0,
+    "min_income": 15100001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 7.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 19750000.0,
+    "min_income": 16950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 8.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 24150000.0,
+    "min_income": 19750001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 9.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 26450000.0,
+    "min_income": 24150001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 10.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 28000000.0,
+    "min_income": 26450001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 11.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 30050000.0,
+    "min_income": 28000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 12.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 32400000.0,
+    "min_income": 30050001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 13.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 35400000.0,
+    "min_income": 32400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 14.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 39100000.0,
+    "min_income": 35400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 15.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 43850000.0,
+    "min_income": 39100001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 16.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 47800000.0,
+    "min_income": 43850001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 17.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 51400000.0,
+    "min_income": 47800001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 18.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 56300000.0,
+    "min_income": 51400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 19.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 62200000.0,
+    "min_income": 56300001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 20.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 68600000.0,
+    "min_income": 62200001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 21.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 77500000.0,
+    "min_income": 68600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 22.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 89000000.0,
+    "min_income": 77500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 23.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 103000000.0,
+    "min_income": 89000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 24.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 125000000.0,
+    "min_income": 103000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 25.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 157000000.0,
+    "min_income": 125000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 26.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 206000000.0,
+    "min_income": 157000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 27.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 337000000.0,
+    "min_income": 206000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 28.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 454000000.0,
+    "min_income": 337000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 29.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 550000000.0,
+    "min_income": 454000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 30.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 695000000.0,
+    "min_income": 550000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 31.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 910000000.0,
+    "min_income": 695000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 32.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 1400000000.0,
+    "min_income": 910000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 33.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 0.0,
+    "min_income": 1400000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 34.0,
+    "ter_code": "A"
+   },
+   {
+    "max_income": 6200000.0,
+    "min_income": 0.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 6500000.0,
+    "min_income": 6200001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.25,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 6850000.0,
+    "min_income": 6500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.5,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 7300000.0,
+    "min_income": 6850001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.75,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 9200000.0,
+    "min_income": 7300001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 10750000.0,
+    "min_income": 9200001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.5,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 11250000.0,
+    "min_income": 10750001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 2.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 11600000.0,
+    "min_income": 11250001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 2.5,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 12600000.0,
+    "min_income": 11600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 3.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 13600000.0,
+    "min_income": 12600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 4.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 14950000.0,
+    "min_income": 13600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 5.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 16400000.0,
+    "min_income": 14950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 6.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 18450000.0,
+    "min_income": 16400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 7.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 21850000.0,
+    "min_income": 18450001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 8.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 26000000.0,
+    "min_income": 21850001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 9.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 27700000.0,
+    "min_income": 26000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 10.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 29350000.0,
+    "min_income": 27700001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 11.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 31450000.0,
+    "min_income": 29350001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 12.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 33950000.0,
+    "min_income": 31450001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 13.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 37100000.0,
+    "min_income": 33950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 14.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 41100000.0,
+    "min_income": 37100001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 15.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 45800000.0,
+    "min_income": 41100001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 16.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 49500000.0,
+    "min_income": 45800001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 17.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 53800000.0,
+    "min_income": 49500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 18.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 58500000.0,
+    "min_income": 53800001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 19.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 64000000.0,
+    "min_income": 58500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 20.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 71000000.0,
+    "min_income": 64000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 21.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 80000000.0,
+    "min_income": 71000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 22.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 93000000.0,
+    "min_income": 80000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 23.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 109000000.0,
+    "min_income": 93000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 24.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 129000000.0,
+    "min_income": 109000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 25.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 163000000.0,
+    "min_income": 129000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 26.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 211000000.0,
+    "min_income": 163000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 27.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 374000000.0,
+    "min_income": 211000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 28.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 459000000.0,
+    "min_income": 374000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 29.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 555000000.0,
+    "min_income": 459000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 30.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 704000000.0,
+    "min_income": 555000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 31.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 957000000.0,
+    "min_income": 704000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 32.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 1405000000.0,
+    "min_income": 957000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 33.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 0.0,
+    "min_income": 1405000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 34.0,
+    "ter_code": "B"
+   },
+   {
+    "max_income": 6600000.0,
+    "min_income": 0.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 6950000.0,
+    "min_income": 6600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.25,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 7350000.0,
+    "min_income": 6950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.5,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 7800000.0,
+    "min_income": 7350001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 0.75,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 8850000.0,
+    "min_income": 7800001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 9880000.0,
+    "min_income": 8850001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.25,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 10950000.0,
+    "min_income": 9880001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.5,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 11200000.0,
+    "min_income": 10950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 1.75,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 12050000.0,
+    "min_income": 11200001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 2.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 12950000.0,
+    "min_income": 12050001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 3.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 14150000.0,
+    "min_income": 12950001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 4.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 15550000.0,
+    "min_income": 14150001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 5.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 17050000.0,
+    "min_income": 15550001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 6.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 19500000.0,
+    "min_income": 17050001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 7.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 22700000.0,
+    "min_income": 19500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 8.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 26600000.0,
+    "min_income": 22700001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 9.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 28100000.0,
+    "min_income": 26600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 10.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 30100000.0,
+    "min_income": 28100001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 11.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 32600000.0,
+    "min_income": 30100001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 12.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 35400000.0,
+    "min_income": 32600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 13.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 38900000.0,
+    "min_income": 35400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 14.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 43000000.0,
+    "min_income": 38900001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 15.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 47400000.0,
+    "min_income": 43000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 16.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 51200000.0,
+    "min_income": 47400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 17.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 55800000.0,
+    "min_income": 51200001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 18.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 60400000.0,
+    "min_income": 55800001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 19.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 66700000.0,
+    "min_income": 60400001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 20.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 74500000.0,
+    "min_income": 66700001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 21.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 83200000.0,
+    "min_income": 74500001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 22.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 95600000.0,
+    "min_income": 83200001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 23.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 110000000.0,
+    "min_income": 95600001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 24.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 134000000.0,
+    "min_income": 110000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 25.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 169000000.0,
+    "min_income": 134000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 26.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 221000000.0,
+    "min_income": 169000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 27.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 390000000.0,
+    "min_income": 221000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 28.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 463000000.0,
+    "min_income": 390000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 29.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 561000000.0,
+    "min_income": 463000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 30.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 709000000.0,
+    "min_income": 561000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 31.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 965000000.0,
+    "min_income": 709000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 32.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 1419000000.0,
+    "min_income": 965000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 33.0,
+    "ter_code": "C"
+   },
+   {
+    "max_income": 0.0,
+    "min_income": 1419000001.0,
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_bracket_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "rate_percent": 34.0,
+    "ter_code": "C"
+   }
+  ],
+  "ter_mapping_table": [
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "TK/0",
+    "ter_code": "A"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "TK/1",
+    "ter_code": "A"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "K/0",
+    "ter_code": "A"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "TK/2",
+    "ter_code": "B"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "K/1",
+    "ter_code": "B"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "TK/3",
+    "ter_code": "B"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "K/2",
+    "ter_code": "B"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "K/3",
+    "ter_code": "C"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "HB/0",
+    "ter_code": "A"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "HB/1",
+    "ter_code": "B"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "HB/2",
+    "ter_code": "B"
+   },
+   {
+    "parent": "Payroll Indonesia Settings",
+    "parentfield": "ter_mapping_table",
+    "parenttype": "Payroll Indonesia Settings",
+    "tax_status": "HB/3",
+    "ter_code": "C"
+   }
+  ],
+  "validate_tax_status_strict": 1
+ }
+]

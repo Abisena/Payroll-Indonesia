@@ -1,0 +1,134 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0o86n5l8",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "TK/0",
+  "ter_code": "A"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0kkhmsbf",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "TK/1",
+  "ter_code": "A"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0cv6526e",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "K/0",
+  "ter_code": "A"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0cp35dov",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "TK/2",
+  "ter_code": "B"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0i68brd9",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "K/1",
+  "ter_code": "B"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0molgm77",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "TK/3",
+  "ter_code": "B"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0is88d1a",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "K/2",
+  "ter_code": "B"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0dah79su",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "K/3",
+  "ter_code": "C"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0cu3h8nt",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "HB/0",
+  "ter_code": "A"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0bh6tovi",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "HB/1",
+  "ter_code": "B"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq06f2gk5a",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "HB/2",
+  "ter_code": "B"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "TER Mapping Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uq0pqc948v",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ter_mapping_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "tax_status": "HB/3",
+  "ter_code": "C"
+ }
+]

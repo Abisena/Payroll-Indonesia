@@ -1,0 +1,40 @@
+[
+ {
+  "biaya_jabatan": 0.0,
+  "bruto": 0.0,
+  "bulan": 4,
+  "docstatus": 1,
+  "doctype": "Annual Payroll History Child",
+  "error_state": null,
+  "modified": "2026-04-24 14:56:05.791991",
+  "name": "l6ptk14304",
+  "netto": 0.0,
+  "parent": "HR-EMP-00001-2026",
+  "parentfield": "monthly_details",
+  "parenttype": "Annual Payroll History",
+  "pengurang_netto": 0.0,
+  "pkp": 0.0,
+  "pph21": 0.0,
+  "rate": 0.0,
+  "salary_slip": "Sal Slip/HR-EMP-00001/00006"
+ },
+ {
+  "biaya_jabatan": 0.0,
+  "bruto": 0.0,
+  "bulan": 4,
+  "docstatus": 1,
+  "doctype": "Annual Payroll History Child",
+  "error_state": null,
+  "modified": "2026-04-28 09:19:01.490217",
+  "name": "ummp7sn0mq",
+  "netto": 0.0,
+  "parent": "HR-EMP-00001-2026",
+  "parentfield": "monthly_details",
+  "parenttype": "Annual Payroll History",
+  "pengurang_netto": 0.0,
+  "pkp": 0.0,
+  "pph21": 0.0,
+  "rate": 0.0,
+  "salary_slip": "Sal Slip/HR-EMP-00001/00006"
+ }
+]

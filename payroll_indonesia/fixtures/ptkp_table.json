@@ -1,0 +1,134 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uptc9ogf32",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 54000000.0,
+  "tax_status": "TK/0"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt6asnfh1",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 58500000.0,
+  "tax_status": "TK/1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt7aqk322",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 63000000.0,
+  "tax_status": "TK/2"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt04qtj5l",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 67500000.0,
+  "tax_status": "TK/3"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uptg5ciq91",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 58500000.0,
+  "tax_status": "K/0"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt6bq3llr",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 63000000.0,
+  "tax_status": "K/1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt8cbu71l",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 67500000.0,
+  "tax_status": "K/2"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt93g830s",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 72000000.0,
+  "tax_status": "K/3"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uptvl1o96v",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 58500000.0,
+  "tax_status": "HB/0"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "uptn1li7jq",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 63000000.0,
+  "tax_status": "HB/1"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt5enkho9",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 67500000.0,
+  "tax_status": "HB/2"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "PTKP Table",
+  "modified": "2026-04-28 09:19:12.250012",
+  "name": "upt8558vn7",
+  "parent": "Payroll Indonesia Settings",
+  "parentfield": "ptkp_table",
+  "parenttype": "Payroll Indonesia Settings",
+  "ptkp_amount": 72000000.0,
+  "tax_status": "HB/3"
+ }
+]

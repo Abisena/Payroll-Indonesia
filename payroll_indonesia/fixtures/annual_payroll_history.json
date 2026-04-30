@@ -1,0 +1,53 @@
+[
+ {
+  "biaya_jabatan_total": 0.0,
+  "bruto_total": 0.0,
+  "company": "Tiga Perkasa Teknik",
+  "docstatus": 1,
+  "doctype": "Annual Payroll History",
+  "employee": "HR-EMP-00001",
+  "employee_name": "Rafael",
+  "error_state": null,
+  "fiscal_year": "2026",
+  "koreksi_pph21": 0.0,
+  "modified": "2026-04-24 14:56:05.791991",
+  "monthly_details": [
+   {
+    "biaya_jabatan": 0.0,
+    "bruto": 0.0,
+    "bulan": 4,
+    "error_state": null,
+    "netto": 0.0,
+    "parent": "HR-EMP-00001-2026",
+    "parentfield": "monthly_details",
+    "parenttype": "Annual Payroll History",
+    "pengurang_netto": 0.0,
+    "pkp": 0.0,
+    "pph21": 0.0,
+    "rate": 0.0,
+    "salary_slip": "Sal Slip/HR-EMP-00001/00006"
+   },
+   {
+    "biaya_jabatan": 0.0,
+    "bruto": 0.0,
+    "bulan": 4,
+    "error_state": null,
+    "netto": 0.0,
+    "parent": "HR-EMP-00001-2026",
+    "parentfield": "monthly_details",
+    "parenttype": "Annual Payroll History",
+    "pengurang_netto": 0.0,
+    "pkp": 0.0,
+    "pph21": 0.0,
+    "rate": 0.0,
+    "salary_slip": "Sal Slip/HR-EMP-00001/00006"
+   }
+  ],
+  "name": "HR-EMP-00001-2026",
+  "netto_total": 0.0,
+  "pengurang_netto_total": 0.0,
+  "pkp_annual": 0.0,
+  "pph21_annual": 0.0,
+  "ptkp_annual": 0.0
+ }
+]
