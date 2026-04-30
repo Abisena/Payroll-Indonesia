@@ -36,7 +36,7 @@ def setup_allowance_components():
             # Update existing
             doc = frappe.get_doc("Salary Component", comp_data["salary_component"])
             doc.update(comp_data)
-            doc.save(ignore_permissions=True)
+            doc.save(ignore_permissions=True, ignore_links=True)
             print(f"✓ Updated: {comp_data['salary_component']}")
         else:
             # Create new
