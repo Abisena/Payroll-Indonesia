@@ -393,6 +393,37 @@ class CustomSalarySlip(SalarySlip):
                 new_deductions.append(d)
         self.set("deductions", new_deductions)
 
+
+    def _strip_bpjs_if_exempt(self):
+        """Hapus komponen BPJS dari earnings/deductions jika employee bebas_bpjs = 1."""
+        try:
+            emp_doc = self.get_employee_doc()
+            bebas = getattr(emp_doc, "exempt_from_bpjs", 0) if not isinstance(emp_doc, dict) else emp_doc.get("exempt_from_bpjs", 0)
+            if not bebas:
+                return
+
+            def is_bpjs(component_name):
+                name_lower = (component_name or "").lower()
+                return "bpjs" in name_lower or "jht" in name_lower or "jkk" in name_lower or "jkm" in name_lower
+
+            for row in (self.earnings or []):
+                sc = row.get("salary_component") if isinstance(row, dict) else getattr(row, "salary_component", "")
+                if is_bpjs(sc):
+                    if isinstance(row, dict): row["amount"] = 0
+                    else: row.amount = 0
+
+            for row in (self.deductions or []):
+                sc = row.get("salary_component") if isinstance(row, dict) else getattr(row, "salary_component", "")
+                if is_bpjs(sc):
+                    if isinstance(row, dict): row["amount"] = 0
+                    else: row.amount = 0
+
+        except Exception as e:
+            frappe.log_error(
+                message=f"Failed to strip BPJS for {self.name}: {e}",
+                title="Payroll Indonesia BPJS Exempt Error"
+            )
+
     # -------------------------
     # Hook validate & sync history
     # -------------------------
@@ -408,6 +439,7 @@ class CustomSalarySlip(SalarySlip):
                     title="Payroll Indonesia Validation Error",
                 )
             
+            self._strip_bpjs_if_exempt()
             self.populate_employer_contributions()
 
             if getattr(self, "tax_type", "") == "DECEMBER":
