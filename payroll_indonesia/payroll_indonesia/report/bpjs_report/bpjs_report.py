@@ -210,7 +210,7 @@ def get_salary_slips(filters):
         FROM `tabSalary Slip` ss
         JOIN `tabEmployee` emp ON emp.name = ss.employee
         WHERE ss.docstatus = 1
-        AND (emp.exempt_from_bpjs IS NULL OR emp.exempt_from_bpjs = 0)
+        AND (emp.has_bpjs IS NULL OR emp.has_bpjs = 0)
         AND {conditions}
         ORDER BY ss.employee, ss.start_date
         """.format(conditions=conditions),

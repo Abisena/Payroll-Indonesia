@@ -398,7 +398,7 @@ class CustomSalarySlip(SalarySlip):
         """Hapus komponen BPJS dari earnings/deductions jika employee bebas_bpjs = 1."""
         try:
             emp_doc = self.get_employee_doc()
-            bebas = getattr(emp_doc, "exempt_from_bpjs", 0) if not isinstance(emp_doc, dict) else emp_doc.get("exempt_from_bpjs", 0)
+            bebas = getattr(emp_doc, "has_bpjs", 0) if not isinstance(emp_doc, dict) else emp_doc.get("has_bpjs", 0)
             if not bebas:
                 return
 
