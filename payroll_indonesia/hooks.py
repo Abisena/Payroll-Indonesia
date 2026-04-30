@@ -125,6 +125,9 @@ salary_slip_globals = {
 # Hook on document methods and events
 
 doc_events = {
+    "Employee": {
+        "on_update": "payroll_indonesia.override.employee.on_update",
+    },
     "Salary Structure": {
         "validate": "payroll_indonesia.utils.validate_salary_structure.validate_salary_structure_required_components"
     },
