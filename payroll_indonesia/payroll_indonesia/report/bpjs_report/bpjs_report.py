@@ -300,19 +300,25 @@ def get_bpjs_components(salary_slip_name):
         "bpjs_jkm": 0
     }
     
-    # Get all salary details for the salary slip
+    # Get employee BPJS components from salary detail
     salary_details = frappe.db.sql(
         """
-        SELECT sd.salary_component, sd.amount, sd.parentfield
+        SELECT sd.salary_component, sd.amount, 'deduction' as parentfield
         FROM `tabSalary Detail` sd
-        WHERE sd.parent = %s 
+        WHERE sd.parent = %s
         AND sd.salary_component LIKE '%%BPJS%%'
         AND sd.salary_component NOT LIKE '%%Contra%%'
+        UNION ALL
+        SELECT ec.salary_component, ec.amount, 'employer' as parentfield
+        FROM `tabEmployer Contribution Detail` ec
+        WHERE ec.parent = %s
+        AND ec.salary_component LIKE '%%BPJS%%'
+        AND ec.salary_component NOT LIKE '%%Contra%%'
         """,
-        (salary_slip_name),
+        (salary_slip_name, salary_slip_name),
         as_dict=1
     )
-    
+
     # Process each component and categorize it
     for detail in salary_details:
         component_name = detail.get("salary_component", "").lower()
