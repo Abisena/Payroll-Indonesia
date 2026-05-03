@@ -552,9 +552,38 @@ class CustomSalarySlip(SalarySlip):
         if getattr(self, "_annual_history_synced", False):
             frappe.logger().info(f"[SYNC] Salary Slip {self.name} synced to Annual Payroll History")
 
+
+    def _restore_aph_if_cancelled(self):
+        """Auto-restore Annual Payroll History jika ikut ter-cancel."""
+        try:
+            fiscal_year = getattr(self, "fiscal_year", None) or str(getattr(self, "start_date", ""))[:4]
+            if not fiscal_year or not getattr(self, "employee", None):
+                return
+            aph_name = f"{self.employee}-{fiscal_year}"
+            if frappe.db.exists("Annual Payroll History", aph_name):
+                docstatus = frappe.db.get_value("Annual Payroll History", aph_name, "docstatus")
+                if docstatus == 2:  # Cancelled
+                    frappe.db.set_value("Annual Payroll History", aph_name, "docstatus", 1)
+                    frappe.db.commit()
+                    frappe.logger("payroll_indonesia").info(
+                        f"Auto-restored Annual Payroll History {aph_name} from Cancelled to Submitted"
+                    )
+        except Exception as e:
+            frappe.log_error(
+                message=f"Failed to restore APH for {getattr(self, 'name', 'unknown')}: {e}",
+                title="Payroll Indonesia APH Restore Error"
+            )
+
     def on_cancel(self):
         if getattr(self, "flags", {}).get("from_annual_payroll_cancel"):
             return
+        # Prevent APH from being cancelled when salary slip is cancelled
+        if not hasattr(self, 'ignore_linked_doctypes'):
+            self.ignore_linked_doctypes = []
+        if 'Annual Payroll History' not in self.ignore_linked_doctypes:
+            self.ignore_linked_doctypes.append('Annual Payroll History')
+        # Auto-restore APH if it got cancelled
+        self._restore_aph_if_cancelled()
         try:
             if not getattr(self, "employee", None):
                 logger.warning(f"No employee for cancelled Salary Slip {getattr(self, 'name', 'unknown')}, skip")
