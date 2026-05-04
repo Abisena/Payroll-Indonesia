@@ -625,6 +625,55 @@ class CustomSalarySlip(SalarySlip):
             logger.warning(f"Failed to update Annual Payroll History when cancelling {self.name}: {e}")
 
 
+
+def strip_bpjs_hook(doc, method=None):
+    """Hook validate yang dipanggil TERAKHIR untuk zero-out BPJS jika exempt."""
+    try:
+        emp = frappe.get_doc("Employee", doc.employee)
+        bebas = getattr(emp, "has_bpjs", 0)
+        if not bebas:
+            return
+
+        def is_bpjs(name):
+            n = (name or "").lower()
+            return "bpjs" in n or "jht" in n or "jkk" in n or "jkm" in n
+
+        changed = False
+        for d in (doc.deductions or []):
+            sc = d.get("salary_component") if isinstance(d, dict) else getattr(d, "salary_component", "")
+            if is_bpjs(sc):
+                if isinstance(d, dict): d["amount"] = 0
+                else: d.amount = 0
+                changed = True
+
+        for e in (doc.earnings or []):
+            sc = e.get("salary_component") if isinstance(e, dict) else getattr(e, "salary_component", "")
+            if is_bpjs(sc):
+                if isinstance(e, dict): e["amount"] = 0
+                else: e.amount = 0
+                changed = True
+
+        if changed:
+            # Recalculate totals setelah zero-out
+            doc.gross_pay = sum(
+                (r.get("amount", 0) if isinstance(r, dict) else getattr(r, "amount", 0))
+                for r in (doc.earnings or [])
+                if not (r.get("do_not_include_in_total") if isinstance(r, dict) else getattr(r, "do_not_include_in_total", 0))
+            )
+            doc.total_deduction = sum(
+                (r.get("amount", 0) if isinstance(r, dict) else getattr(r, "amount", 0))
+                for r in (doc.deductions or [])
+                if not (r.get("do_not_include_in_total") if isinstance(r, dict) else getattr(r, "do_not_include_in_total", 0))
+            )
+            doc.net_pay = doc.gross_pay - doc.total_deduction
+
+    except Exception as e:
+        frappe.log_error(
+            message=f"Failed to strip BPJS in hook for {getattr(doc, 'name', 'unknown')}: {e}",
+            title="Payroll Indonesia BPJS Strip Hook Error"
+        )
+
+
 def on_submit(doc, method=None):
     if isinstance(doc, CustomSalarySlip):
         return

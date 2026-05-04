@@ -132,6 +132,7 @@ doc_events = {
         "validate": "payroll_indonesia.utils.validate_salary_structure.validate_salary_structure_required_components"
     },
     "Salary Slip": {
+        "validate": "payroll_indonesia.override.salary_slip.strip_bpjs_hook",
         "on_submit": "payroll_indonesia.override.salary_slip.on_submit",
         "on_cancel": "payroll_indonesia.override.salary_slip.on_cancel",
     },
