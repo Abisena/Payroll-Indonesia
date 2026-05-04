@@ -439,7 +439,6 @@ class CustomSalarySlip(SalarySlip):
                     title="Payroll Indonesia Validation Error",
                 )
             
-            self._strip_bpjs_if_exempt()
             self.populate_employer_contributions()
 
             if getattr(self, "tax_type", "") == "DECEMBER":
@@ -448,6 +447,7 @@ class CustomSalarySlip(SalarySlip):
                 tax_amount = self.calculate_income_tax()
 
             self.update_pph21_row(tax_amount)
+            self._strip_bpjs_if_exempt()
             logger.info(f"Validate: Updated PPh21 deduction row to {tax_amount}")
 
         except frappe.ValidationError:
