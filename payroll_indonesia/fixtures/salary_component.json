@@ -132,15 +132,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Salary Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Basic Salary",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -173,15 +165,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Salary Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Gaji Pokok",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -214,15 +198,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Transport Allowance - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Tunjangan Transport",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -255,15 +231,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Meal Allowance - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Tunjangan Makan",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -296,15 +264,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "THR Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "THR",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -337,15 +297,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Bonus Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Bonus",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -378,15 +330,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Office Meals Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Makan di Kantor",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -419,15 +363,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Work Uniform Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Seragam Kerja",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -460,15 +396,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Holiday Gift Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Bingkisan Hari Raya",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -501,15 +429,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Additional Insurance Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Asuransi Tambahan",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -542,15 +462,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Company Vehicle Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Kendaraan Dinas",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -583,15 +495,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Sales Incentive Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Insentif Penjualan",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -624,15 +528,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Tax Allowance Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Tunjangan Pajak atas Insentif",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -665,15 +561,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS Kesehatan Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "BPJS Kesehatan Employer",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -706,15 +594,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS JHT Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "BPJS JHT Employer",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -747,15 +627,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS JP Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "BPJS JP Employer",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -788,15 +660,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS JKK Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "BPJS JKK Employer",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -829,15 +693,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS JKM Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "BPJS JKM Employer",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -870,15 +726,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS Kesehatan - ITB",
-    "company": "Inovasi Terbaik Bangsa",
-    "parent": "BPJS Kesehatan Employee",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -911,15 +759,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS JHT - ITB",
-    "company": "Inovasi Terbaik Bangsa",
-    "parent": "BPJS JHT Employee",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -952,15 +792,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "BPJS JP - ITB",
-    "company": "Inovasi Terbaik Bangsa",
-    "parent": "BPJS JP Employee",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
@@ -993,15 +825,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "PPh 21 Payable - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "PPh 21",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 0,
   "condition": null,
@@ -1034,15 +858,7 @@
   "variable_based_on_taxable_salary": 0
  },
  {
-  "accounts": [
-   {
-    "account": "Salary Expense - TPT",
-    "company": "Tiga Perkasa Teknik",
-    "parent": "Biaya Jabatan",
-    "parentfield": "accounts",
-    "parenttype": "Salary Component"
-   }
-  ],
+  "accounts": [],
   "amount": 0.0,
   "amount_based_on_formula": 1,
   "condition": null,
