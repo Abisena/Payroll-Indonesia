@@ -82,7 +82,8 @@ doctype_js = {
 # `after_migrate`.
 after_migrate = [
     "payroll_indonesia.setup.setup_module.after_sync",
-    "payroll_indonesia.setup.install.after_migrate"
+    "payroll_indonesia.setup.install.after_migrate",
+    "payroll_indonesia.setup.salary_component_accounts.sync_salary_component_accounts"
 ]
 
 # Desk Notifications
