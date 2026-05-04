@@ -1,33 +1,32 @@
 # payroll_indonesia/override/employee.py
 """
-Override Employee untuk handle perubahan has_bpjs:
+Override Employee untuk handle perubahan bebas_bpjs per-jenis:
 - Draft salary slip otomatis di-recalculate
 - Warning untuk submitted slip yang perlu di-amend manual
 """
-
 import frappe
 from frappe import _
 
-
 def on_update(doc, method=None):
     """Trigger saat Employee di-save."""
-    # Cek apakah has_bpjs berubah
     before = doc.get_doc_before_save()
     if not before:
         return
 
-    before_bpjs = getattr(before, "has_bpjs", None)
-    after_bpjs = getattr(doc, "has_bpjs", None)
+    # Cek apakah salah satu field bebas_bpjs berubah
+    changed = False
+    for field in ["bebas_bpjs_kesehatan", "bebas_bpjs_jht", "bebas_bpjs_jp"]:
+        if getattr(before, field, None) != getattr(doc, field, None):
+            changed = True
+            break
 
-    if before_bpjs == after_bpjs:
-        return  # Tidak ada perubahan, skip
+    if not changed:
+        return
 
-    _handle_bpjs_change(doc.name, doc.employee_name, after_bpjs)
+    _handle_bpjs_change(doc.name, doc.employee_name, doc)
 
-
-def _handle_bpjs_change(employee, employee_name, has_bpjs):
-    """Handle perubahan has_bpjs — update draft, warning submitted."""
-
+def _handle_bpjs_change(employee, employee_name, doc):
+    """Handle perubahan bebas_bpjs — update draft, warning submitted."""
     # 1) Cari semua draft salary slip employee ini
     draft_slips = frappe.get_all(
         "Salary Slip",
@@ -68,13 +67,23 @@ def _handle_bpjs_change(employee, employee_name, has_bpjs):
         slip_list = "\n".join(
             [f"• {s.name} ({s.start_date} - {s.end_date})" for s in submitted_slips]
         )
-        status = "dibebaskan dari" if has_bpjs else "dikenakan"
+        # Buat summary perubahan
+        status_parts = []
+        if getattr(doc, "bebas_bpjs_kesehatan", 0):
+            status_parts.append("Bebas BPJS Kesehatan")
+        if getattr(doc, "bebas_bpjs_jht", 0):
+            status_parts.append("Bebas BPJS JHT")
+        if getattr(doc, "bebas_bpjs_jp", 0):
+            status_parts.append("Bebas BPJS JP")
+
+        status_text = ", ".join(status_parts) if status_parts else "Tidak ada pembebasan BPJS"
+
         frappe.msgprint(
             _(
-                "Employee {0} sekarang <b>{1} BPJS</b>.<br><br>"
+                "Employee {0} status BPJS: <b>{1}</b>.<br><br>"
                 "Salary slip berikut sudah <b>Submitted</b> dan perlu di-<b>Amend</b> manual "
                 "agar perubahan BPJS berlaku:<br><pre>{2}</pre>"
-            ).format(employee_name, status, slip_list),
+            ).format(employee_name, status_text, slip_list),
             title=_("Perlu Amend Manual"),
             indicator="orange"
         )

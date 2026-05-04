@@ -395,16 +395,30 @@ class CustomSalarySlip(SalarySlip):
 
 
     def _strip_bpjs_if_exempt(self):
-        """Hapus komponen BPJS dari earnings/deductions jika employee bebas_bpjs = 1."""
+        """Hapus komponen BPJS dari earnings/deductions berdasarkan field bebas_bpjs per-jenis."""
         try:
             emp_doc = self.get_employee_doc()
-            bebas = getattr(emp_doc, "has_bpjs", 0) if not isinstance(emp_doc, dict) else emp_doc.get("has_bpjs", 0)
-            if not bebas:
+            if isinstance(emp_doc, dict):
+                bebas_kesehatan = emp_doc.get("bebas_bpjs_kesehatan", 0)
+                bebas_jht = emp_doc.get("bebas_bpjs_jht", 0)
+                bebas_jp = emp_doc.get("bebas_bpjs_jp", 0)
+            else:
+                bebas_kesehatan = getattr(emp_doc, "bebas_bpjs_kesehatan", 0)
+                bebas_jht = getattr(emp_doc, "bebas_bpjs_jht", 0)
+                bebas_jp = getattr(emp_doc, "bebas_bpjs_jp", 0)
+            if not any([bebas_kesehatan, bebas_jht, bebas_jp]):
                 return
-
             def is_bpjs(component_name):
-                name_lower = (component_name or "").lower()
-                return "bpjs" in name_lower or "jht" in name_lower or "jkk" in name_lower or "jkm" in name_lower
+                n = (component_name or "").lower()
+                if bebas_kesehatan and ("kesehatan" in n or ("bpjs" in n and "jht" not in n and "jp" not in n and "jkk" not in n and "jkm" not in n)):
+                    return True
+                if bebas_jht and ("jht" in n):
+                    return True
+                if bebas_jp and ("jp" in n and "bpjs" in n):
+                    return True
+                if bebas_kesehatan and ("jkk" in n or "jkm" in n):
+                    return True
+                return False
 
             for row in (self.earnings or []):
                 sc = row.get("salary_component") if isinstance(row, dict) else getattr(row, "salary_component", "")
@@ -630,13 +644,20 @@ def strip_bpjs_hook(doc, method=None):
     """Hook validate yang dipanggil TERAKHIR untuk zero-out BPJS jika exempt."""
     try:
         emp = frappe.get_doc("Employee", doc.employee)
-        bebas = getattr(emp, "has_bpjs", 0)
-        if not bebas:
+        bebas_kesehatan = getattr(emp, "bebas_bpjs_kesehatan", 0)
+        bebas_jht = getattr(emp, "bebas_bpjs_jht", 0)
+        bebas_jp = getattr(emp, "bebas_bpjs_jp", 0)
+        if not any([bebas_kesehatan, bebas_jht, bebas_jp]):
             return
-
         def is_bpjs(name):
             n = (name or "").lower()
-            return "bpjs" in n or "jht" in n or "jkk" in n or "jkm" in n
+            if bebas_kesehatan and ("kesehatan" in n or "jkk" in n or "jkm" in n):
+                return True
+            if bebas_jht and "jht" in n:
+                return True
+            if bebas_jp and "jp" in n and "bpjs" in n:
+                return True
+            return False
 
         changed = False
         for d in (doc.deductions or []):
