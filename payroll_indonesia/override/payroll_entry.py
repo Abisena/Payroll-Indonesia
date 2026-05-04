@@ -373,6 +373,9 @@ class CustomPayrollEntry(PayrollEntry):
             logger.info(f"Successfully processed {len(processed_slips)} salary slips")
         else:
             logger.warning("No salary slips were successfully processed")
+
+        # Update summary fields
+        self._update_summary_fields()
             
         return processed_slips
 
@@ -396,6 +399,56 @@ class CustomPayrollEntry(PayrollEntry):
                 return {}
         return {}
         
+    def _update_summary_fields(self):
+        """Auto-fill periode, total_karyawan, dan total_amount."""
+        try:
+            # Format periode: "Apr 2026" dari start_date
+            if self.start_date:
+                from frappe.utils import getdate
+
+                d = getdate(self.start_date)
+                bulan = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                ]
+                periode = f"{bulan[d.month - 1]} {d.year}"
+            else:
+                periode = ""
+
+            # Hitung total karyawan dan total amount dari salary slips
+            slips = frappe.get_all(
+                "Salary Slip",
+                filters={"payroll_entry": self.name, "docstatus": 1},
+                fields=["net_pay"],
+            )
+            total_karyawan = len(slips)
+            total_amount = sum(s.net_pay or 0 for s in slips)
+
+            # Update ke database
+            self.db_set("periode", periode, update_modified=False)
+            self.db_set("total_karyawan", total_karyawan, update_modified=False)
+            self.db_set("total_amount", total_amount, update_modified=False)
+
+            logger.info(
+                f"Updated summary fields for {self.name}: "
+                f"periode={periode}, karyawan={total_karyawan}, amount={total_amount}"
+            )
+        except Exception as e:
+            frappe.log_error(
+                message=f"Failed to update summary fields for {self.name}: {e}",
+                title="Payroll Indonesia Summary Fields Error",
+            )
+
     def on_cancel(self):
         """
         Handle cancellation of Payroll Entry with proper salary slip cleanup.
@@ -414,6 +467,10 @@ class CustomPayrollEntry(PayrollEntry):
             # Reset flags & update status
             self.db_set("salary_slips_created", 0)
             self.db_set("salary_slips_submitted", 0)
+            # Reset summary fields
+            self.db_set("periode", "", update_modified=False)
+            self.db_set("total_karyawan", 0, update_modified=False)
+            self.db_set("total_amount", 0, update_modified=False)
             self.set_status(update=True, status="Cancelled")
             self.db_set("error_message", "")
             
