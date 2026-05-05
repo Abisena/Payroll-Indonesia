@@ -275,7 +275,8 @@ fixtures = [
                 "name",
                 "in",
                 [
-                    "Slip Gaji Payroll Indonesia"
+                    "Slip Gaji Payroll Indonesia",
+                    "Slip Gaji Modern"
                 ]
             ]
         ]

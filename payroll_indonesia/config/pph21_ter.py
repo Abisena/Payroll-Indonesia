@@ -44,8 +44,26 @@ def _is_employer_benefit_component(component_name: str) -> bool:
 def _infer_employer_bpjs_taxable_from_base(salary_slip: Dict[str, Any]) -> float:
     """Fallback when employer rows are not present in slip tables."""
     base = flt(salary_slip.get("base", 0))
+
+    # If base not in slip dict, try to get from Salary Structure Assignment
+    if base <= 0:
+        employee = salary_slip.get("employee")
+        salary_structure = salary_slip.get("salary_structure")
+        if employee and salary_structure:
+            try:
+                ssa_base = frappe.db.get_value(
+                    "Salary Structure Assignment",
+                    {"employee": employee, "salary_structure": salary_structure, "docstatus": 1},
+                    "base"
+                )
+                if ssa_base:
+                    base = flt(ssa_base)
+            except Exception:
+                pass
+
     if base <= 0:
         return 0.0
+
     bpjs_health_base = max(base, 5_396_761.0)
     return (
         bpjs_health_base * flt(get_bpjs_rate("bpjs_health_employer_rate")) / 100.0
