@@ -43,6 +43,10 @@ def _is_employer_benefit_component(component_name: str) -> bool:
 
 def _infer_employer_bpjs_taxable_from_base(salary_slip: Dict[str, Any]) -> float:
     """Fallback when employer rows are not present in slip tables."""
+    # Jika karyawan bebas BPJS Kesehatan, maka komponen employer kesehatan/JKK/JKM tidak dihitung.
+    if int(flt(salary_slip.get("bebas_bpjs_kesehatan", 0))) == 1:
+        return 0.0
+
     base = flt(salary_slip.get("base", 0))
 
     # If base not in slip dict, try to get from Salary Structure Assignment
