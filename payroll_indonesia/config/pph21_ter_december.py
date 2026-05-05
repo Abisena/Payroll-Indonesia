@@ -25,6 +25,12 @@ DEFAULT_TAX_SLABS = [
     (float("inf"), 35),
 ]
 
+EMPLOYER_BENEFIT_KEYWORDS = (
+    "bpjs kesehatan company",
+    "bpjs jkk company",
+    "bpjs jkm company",
+)
+
 # ---------------------------------------------------------------------------
 # HELPERS
 # ---------------------------------------------------------------------------
@@ -52,13 +58,23 @@ def get_tax_slabs() -> List[Tuple[float, float]]:
     return slabs
 
 
+def _is_employer_benefit_component(component_name: str) -> bool:
+    name = (component_name or "").strip().lower()
+    return any(keyword in name for keyword in EMPLOYER_BENEFIT_KEYWORDS)
+
+
 def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
     total = 0.0
     for row in salary_slip.get("earnings", []) or []:
+        component_name = row.get("salary_component", "")
+        is_taxable_earning = (
+            row.get("is_tax_applicable", 0) == 1
+            or row.get("is_income_tax_component", 0) == 1
+            or row.get("variable_based_on_taxable_salary", 0) == 1
+        )
+        is_employer_benefit = _is_employer_benefit_component(component_name)
         if (
-            (row.get("is_tax_applicable", 0) == 1
-             or row.get("is_income_tax_component", 0) == 1
-             or row.get("variable_based_on_taxable_salary", 0) == 1)
+            (is_taxable_earning or is_employer_benefit)
             and row.get("statistical_component", 0) == 0
             and row.get("exempted_from_income_tax", 0) == 0
         ):
