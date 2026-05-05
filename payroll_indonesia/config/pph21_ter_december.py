@@ -15,7 +15,7 @@ from frappe import ValidationError
 from frappe.utils import flt, getdate
 from decimal import Decimal, ROUND_HALF_UP
 
-from payroll_indonesia.config import get_ptkp_amount, config
+from payroll_indonesia.config import get_ptkp_amount, get_bpjs_rate, config
 
 DEFAULT_TAX_SLABS = [
     (60_000_000, 5),
@@ -59,10 +59,23 @@ def _is_employer_benefit_component(component_name: str) -> bool:
     return is_bpjs_target and is_employer_side
 
 
+def _infer_employer_bpjs_taxable_from_base(salary_slip: Dict[str, Any]) -> float:
+    base = flt(salary_slip.get("base", 0))
+    if base <= 0:
+        return 0.0
+    bpjs_health_base = max(base, 5_396_761.0)
+    return (
+        bpjs_health_base * flt(get_bpjs_rate("bpjs_health_employer_rate")) / 100.0
+        + base * flt(get_bpjs_rate("bpjs_jkk_rate")) / 100.0
+        + base * flt(get_bpjs_rate("bpjs_jkm_rate")) / 100.0
+    )
+
+
 def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
     total = 0.0
     earnings = salary_slip.get("earnings", []) or []
     employer_contributions = salary_slip.get("employer_contributions", []) or []
+    employer_rows_found = 0
     for row in [*earnings, *employer_contributions]:
         component_name = row.get("salary_component", "")
         is_taxable_earning = (
@@ -71,12 +84,16 @@ def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
             or row.get("variable_based_on_taxable_salary", 0) == 1
         )
         is_employer_benefit = _is_employer_benefit_component(component_name)
+        if is_employer_benefit:
+            employer_rows_found += 1
         if (
             (is_taxable_earning or is_employer_benefit)
             and row.get("statistical_component", 0) == 0
             and row.get("exempted_from_income_tax", 0) == 0
         ):
             total += flt(row.get("amount", 0))
+    if employer_rows_found == 0:
+        total += _infer_employer_bpjs_taxable_from_base(salary_slip)
     return total
 
 

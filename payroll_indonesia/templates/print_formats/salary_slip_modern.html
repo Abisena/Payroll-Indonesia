@@ -54,6 +54,30 @@
   {%- endfor -%}
 {%- endif -%}
 
+{# Fallback: hitung estimasi saat tabel employer_contributions kosong #}
+{%- if not employer_list and (doc.base or 0) > 0 -%}
+  {%- set settings_doc = frappe.get_cached_doc("Payroll Indonesia Settings", "Payroll Indonesia Settings")
+      if frappe.db.exists("Payroll Indonesia Settings", "Payroll Indonesia Settings") else None -%}
+  {%- set base_amt = (doc.base or 0) | float -%}
+  {%- set health_base = [base_amt, 5396761] | max -%}
+  {%- set rate_health = (settings_doc.get("bpjs_health_employer_rate") if settings_doc else 4.0) | float -%}
+  {%- set rate_jkk = (settings_doc.get("bpjs_jkk_rate") if settings_doc else 0.24) | float -%}
+  {%- set rate_jkm = (settings_doc.get("bpjs_jkm_rate") if settings_doc else 0.3) | float -%}
+  {%- set est_health = health_base * rate_health / 100 -%}
+  {%- set est_jkk = base_amt * rate_jkk / 100 -%}
+  {%- set est_jkm = base_amt * rate_jkm / 100 -%}
+  {%- for item in [
+      {"salary_component": "BPJS Kesehatan Employer (Estimasi)", "amount": est_health},
+      {"salary_component": "BPJS JKK Employer (Estimasi)", "amount": est_jkk},
+      {"salary_component": "BPJS JKM Employer (Estimasi)", "amount": est_jkm}
+    ] -%}
+    {%- if item.amount > 0 -%}
+      {%- set _ = employer_list.append(item) -%}
+      {%- set ns.emp_total = ns.emp_total + item.amount -%}
+    {%- endif -%}
+  {%- endfor -%}
+{%- endif -%}
+
 <style>
 @page { size: A5 landscape; margin: 5mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
