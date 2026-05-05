@@ -297,6 +297,7 @@ class CustomSalarySlip(SalarySlip):
         return {
             "earnings": getattr(self, "earnings", []),
             "deductions": getattr(self, "deductions", []),
+            "employer_contributions": getattr(self, "employer_contributions", []),
             "start_date": getattr(self, "start_date", None),
             "name": getattr(self, "name", None),
         }
