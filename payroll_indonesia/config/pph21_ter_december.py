@@ -60,6 +60,9 @@ def _is_employer_benefit_component(component_name: str) -> bool:
 
 
 def _infer_employer_bpjs_taxable_from_base(salary_slip: Dict[str, Any]) -> float:
+    if int(flt(salary_slip.get("bebas_bpjs_kesehatan", 0))) == 1:
+        return 0.0
+
     base = flt(salary_slip.get("base", 0))
     if base <= 0:
         return 0.0

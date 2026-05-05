@@ -296,6 +296,9 @@ class CustomSalarySlip(SalarySlip):
     def _calculate_taxable_income(self):
         # Get base from Salary Structure Assignment
         base = 0
+        bebas_kesehatan = 0
+        bebas_jht = 0
+        bebas_jp = 0
         try:
             ssa = frappe.db.get_value(
                 "Salary Structure Assignment",
@@ -311,11 +314,27 @@ class CustomSalarySlip(SalarySlip):
         except Exception:
             base = 0
 
+        try:
+            emp_doc = self.get_employee_doc()
+            if isinstance(emp_doc, dict):
+                bebas_kesehatan = emp_doc.get("bebas_bpjs_kesehatan", 0)
+                bebas_jht = emp_doc.get("bebas_bpjs_jht", 0)
+                bebas_jp = emp_doc.get("bebas_bpjs_jp", 0)
+            else:
+                bebas_kesehatan = getattr(emp_doc, "bebas_bpjs_kesehatan", 0)
+                bebas_jht = getattr(emp_doc, "bebas_bpjs_jht", 0)
+                bebas_jp = getattr(emp_doc, "bebas_bpjs_jp", 0)
+        except Exception:
+            pass
+
         return {
             "earnings": getattr(self, "earnings", []),
             "deductions": getattr(self, "deductions", []),
             "employer_contributions": getattr(self, "employer_contributions", []),
             "base": base,
+            "bebas_bpjs_kesehatan": bebas_kesehatan,
+            "bebas_bpjs_jht": bebas_jht,
+            "bebas_bpjs_jp": bebas_jp,
             "employee": getattr(self, "employee", None),
             "salary_structure": getattr(self, "salary_structure", None),
             "start_date": getattr(self, "start_date", None),
