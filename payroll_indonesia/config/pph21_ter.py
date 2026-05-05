@@ -167,8 +167,9 @@ def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
       - exempted_from_income_tax = 0 (if field exists)
     """
     total = 0.0
-    earnings = salary_slip.get("earnings", [])
-    for row in earnings:
+    earnings = salary_slip.get("earnings", []) or []
+    employer_contributions = salary_slip.get("employer_contributions", []) or []
+    for row in [*earnings, *employer_contributions]:
         component_name = row.get("salary_component", "")
         is_taxable_earning = (
             row.get("is_tax_applicable", 0) == 1

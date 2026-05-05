@@ -61,7 +61,9 @@ def _is_employer_benefit_component(component_name: str) -> bool:
 
 def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
     total = 0.0
-    for row in salary_slip.get("earnings", []) or []:
+    earnings = salary_slip.get("earnings", []) or []
+    employer_contributions = salary_slip.get("employer_contributions", []) or []
+    for row in [*earnings, *employer_contributions]:
         component_name = row.get("salary_component", "")
         is_taxable_earning = (
             row.get("is_tax_applicable", 0) == 1
