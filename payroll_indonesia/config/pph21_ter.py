@@ -33,16 +33,11 @@ PENGURANG_NETTO_NAMES = {
     "dana pensiun",
 }
 
-EMPLOYER_BENEFIT_KEYWORDS = (
-    "bpjs kesehatan company",
-    "bpjs jkk company",
-    "bpjs jkm company",
-)
-
-
 def _is_employer_benefit_component(component_name: str) -> bool:
     name = (component_name or "").strip().lower()
-    return any(keyword in name for keyword in EMPLOYER_BENEFIT_KEYWORDS)
+    is_bpjs_target = "bpjs" in name and any(k in name for k in ("kesehatan", "jkk", "jkm"))
+    is_employer_side = any(k in name for k in ("company", "employer", "perusahaan"))
+    return is_bpjs_target and is_employer_side
 
 
 def calculate_pph21_TER(taxable_income: Union[float, Dict[str, Any]],
