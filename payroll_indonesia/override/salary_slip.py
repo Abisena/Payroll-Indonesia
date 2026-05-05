@@ -294,11 +294,30 @@ class CustomSalarySlip(SalarySlip):
     # Utilitas lain
     # -------------------------
     def _calculate_taxable_income(self):
+        # Get base from Salary Structure Assignment
+        base = 0
+        try:
+            ssa = frappe.db.get_value(
+                "Salary Structure Assignment",
+                {
+                    "employee": self.employee,
+                    "salary_structure": self.salary_structure,
+                    "docstatus": 1
+                },
+                "base"
+            )
+            if ssa:
+                base = flt(ssa)
+        except Exception:
+            base = 0
+
         return {
             "earnings": getattr(self, "earnings", []),
             "deductions": getattr(self, "deductions", []),
             "employer_contributions": getattr(self, "employer_contributions", []),
-            "base": getattr(self, "base", 0),
+            "base": base,
+            "employee": getattr(self, "employee", None),
+            "salary_structure": getattr(self, "salary_structure", None),
             "start_date": getattr(self, "start_date", None),
             "name": getattr(self, "name", None),
         }
