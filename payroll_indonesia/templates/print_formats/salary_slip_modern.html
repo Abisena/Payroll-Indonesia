@@ -1,12 +1,18 @@
 {%- set employee_doc = frappe.get_doc("Employee", doc.employee) -%}
 {%- set month_names = ["January","February","March","April","May","June","July","August","September","October","November","December"] -%}
-{%- if doc.start_date -%}
+{%- if doc.end_date -%}
   {%- set sd = doc.start_date|string -%}
   {%- set ed = doc.end_date|string -%}
   {%- set sd_parts = sd[:10].split("-") -%}
   {%- set ed_parts = ed[:10].split("-") -%}
+  {# Bulan gaji pola 25–24 = bulan dari end_date (24 Des → Desember), bukan start_date #}
+  {%- set period_month = month_names[ed_parts[1]|int - 1] + " " + ed_parts[0] -%}
+  {%- set period_range = sd_parts[2] + " " + month_names[sd_parts[1]|int - 1][:3] + " – " + ed_parts[2] + " " + month_names[ed_parts[1]|int - 1][:3] + " " + ed_parts[0] -%}
+{%- elif doc.start_date -%}
+  {%- set sd = doc.start_date|string -%}
+  {%- set sd_parts = sd[:10].split("-") -%}
   {%- set period_month = month_names[sd_parts[1]|int - 1] + " " + sd_parts[0] -%}
-  {%- set period_range = sd_parts[2] + "–" + ed_parts[2] + " " + month_names[ed_parts[1]|int - 1][:3] + " " + ed_parts[0] -%}
+  {%- set period_range = "" -%}
 {%- else -%}
   {%- set period_month = "" -%}
   {%- set period_range = "" -%}

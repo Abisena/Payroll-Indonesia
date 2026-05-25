@@ -2,6 +2,16 @@ __version__ = "1.0.0"
 
 import frappe
 
+try:
+    from payroll_indonesia.override.salary_slip_cutoff_patch import (
+        apply_salary_slip_cutoff_patch,
+    )
+
+    apply_salary_slip_cutoff_patch()
+except Exception:
+    # Keep app import safe during install/build; Frappe will surface real errors at runtime.
+    pass
+
 def _patch_salary_slip_globals():
     """Resolve string hooks (e.g. 'payroll_indonesia.config.get_bpjs_cap')
     into actual callable functions, so Salary Slip safe_eval can use them."""

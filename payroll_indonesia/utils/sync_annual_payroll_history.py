@@ -230,6 +230,37 @@ def is_salary_slip_valid(
         return True, None
 
 
+def _remove_duplicate_monthly_rows(history: Any, salary_slip: str, keep: Any = None) -> int:
+    """Buang baris child duplikat untuk salary_slip yang sama (sisakan satu)."""
+    if not salary_slip:
+        return 0
+
+    removed = 0
+    rows = list(history.get("monthly_details") or [])
+    seen = False
+    new_rows = []
+    for row in rows:
+        if row.salary_slip != salary_slip:
+            new_rows.append(row)
+            continue
+        if keep is not None and row is keep:
+            if not seen:
+                new_rows.append(row)
+                seen = True
+            else:
+                removed += 1
+            continue
+        if not seen:
+            new_rows.append(row)
+            seen = True
+        else:
+            removed += 1
+
+    if removed:
+        history.set("monthly_details", new_rows)
+    return removed
+
+
 def upsert_monthly_detail(history: Any, month_data: Dict[str, Any]) -> bool:
     """
     Update or insert monthly detail in Annual Payroll History.
@@ -295,11 +326,17 @@ def upsert_monthly_detail(history: Any, month_data: Dict[str, Any]) -> bool:
     if found:
         target = found
     else:
+        # Jangan buat baris kosong tanpa slip (sisa fixture / sync gagal)
+        has_values = any(flt(month_data.get(f)) for f in numeric_fields)
+        if not salary_slip and not has_values:
+            return False
         target = history.append("monthly_details", {})
 
     target.set("bulan", bulan)
     if salary_slip:
         target.set("salary_slip", salary_slip)
+        # Hapus baris duplikat slip yang sama (bug sync / fixture lama).
+        _remove_duplicate_monthly_rows(history, salary_slip, keep=target)
         
     # Serialize error_state to JSON consistently
     if month_data.get("error_state") is not None:
@@ -859,6 +896,98 @@ def sync_annual_payroll_history_for_bulan(
         frappe.throw(f"Gagal memproses Annual Payroll History: {str(e)}")
 
 
+def get_aph_fiscal_year_from_salary_slip(doc) -> str:
+	"""
+	Tahun Annual Payroll History = tahun bulan gaji.
+	Pola cutoff 25–24: slip 25 Des 2025–24 Jan 2026 → fiscal year 2026 (end_date), bukan 2025.
+	"""
+	if getattr(doc, "fiscal_year", None):
+		return str(doc.fiscal_year)
+	if getattr(doc, "end_date", None):
+		return str(getdate(doc.end_date).year)
+	if getattr(doc, "start_date", None):
+		return str(getdate(doc.start_date).year)
+	from datetime import datetime
+
+	return str(datetime.now().year)
+
+
+def build_monthly_aph_row_from_salary_slip(doc) -> dict:
+	"""
+	Bangun baris APH bulanan dari Salary Slip.
+	Bruto/netto/pph21 diambil dari perhitungan TER (bukan gross_pay slip),
+	agar tunjangan BPJS perusahaan ikut bruto pajak.
+	"""
+	if isinstance(doc, str):
+		doc = frappe.get_doc("Salary Slip", doc)
+
+	bulan = None
+	if getattr(doc, "end_date", None):
+		bulan = getdate(doc.end_date).month
+	elif getattr(doc, "start_date", None):
+		bulan = getdate(doc.start_date).month
+	if not bulan:
+		from datetime import datetime
+
+		bulan = datetime.now().month
+
+	result = {}
+	try:
+		from payroll_indonesia.override.salary_slip import CustomSalarySlip
+		from payroll_indonesia.config.pph21_ter import calculate_pph21_TER
+
+		slip = doc
+		if not isinstance(slip, CustomSalarySlip):
+			slip.__class__ = CustomSalarySlip
+
+		CustomSalarySlip.populate_employer_contributions(slip)
+		ti = slip._calculate_taxable_income()
+		employee = frappe.get_doc("Employee", slip.employee)
+		result = calculate_pph21_TER(ti, employee, slip.company, bulan=bulan) or {}
+	except Exception:
+		result = {}
+
+	pph21_info = {}
+	if getattr(doc, "pph21_info", None):
+		try:
+			pph21_info = json.loads(doc.pph21_info)
+		except Exception:
+			pph21_info = {}
+
+	bruto = flt(result.get("bruto") or pph21_info.get("bruto") or doc.gross_pay)
+	pengurang = flt(
+		result.get("pengurang_netto")
+		or pph21_info.get("pengurang_netto")
+		or pph21_info.get("income_tax_deduction_total", 0)
+	)
+	biaya_jabatan = flt(
+		result.get("biaya_jabatan")
+		or pph21_info.get("biaya_jabatan")
+		or pph21_info.get("biaya_jabatan_total", 0)
+	)
+	netto = flt(result.get("netto") or pph21_info.get("netto"))
+	if not netto and bruto:
+		netto = bruto - pengurang - biaya_jabatan
+
+	pph21 = flt(
+		result.get("pph21")
+		or getattr(doc, "tax", None)
+		or pph21_info.get("pph21", pph21_info.get("pph21_bulan", 0))
+	)
+
+	return {
+		"bulan": bulan,
+		"bruto": bruto,
+		"pengurang_netto": pengurang,
+		"biaya_jabatan": biaya_jabatan,
+		"netto": netto,
+		"pkp": flt(result.get("pkp") or pph21_info.get("pkp", pph21_info.get("pkp_annual", 0))),
+		"rate": flt(result.get("rate") or pph21_info.get("rate", 0)),
+		"pph21": pph21,
+		"salary_slip": doc.name,
+	}
+
+
 def recalculate_summary_from_monthly_details(history: Any) -> None:
     """
     Recalculate summary fields based on monthly details.
@@ -868,38 +997,12 @@ def recalculate_summary_from_monthly_details(history: Any) -> None:
     """
     if not history or not hasattr(history, "monthly_details"):
         return
-    
-    # Initialize totals
-    bruto_total = 0
-    pengurang_netto_total = 0
-    biaya_jabatan_total = 0
-    pph21_total = 0
-    
-    # Sum up values from monthly details
-    for detail in history.monthly_details:
-        bruto_total += flt(getattr(detail, "bruto", 0))
-        pengurang_netto_total += flt(getattr(detail, "pengurang_netto", 0))
-        biaya_jabatan_total += flt(getattr(detail, "biaya_jabatan", 0))
-        pph21_total += flt(getattr(detail, "pph21", 0))
-    
-    # Calculate netto_total
-    netto_total = bruto_total - pengurang_netto_total - biaya_jabatan_total
-    
-    # Update summary fields
-    history.bruto_total = bruto_total
-    history.pengurang_netto_total = pengurang_netto_total
-    history.biaya_jabatan_total = biaya_jabatan_total
-    history.netto_total = netto_total
-    
-    # Only update these fields if they don't already have values
-    # since they may be set from external calculations
-    if not history.pph21_annual or history.pph21_annual == 0:
-        history.pph21_annual = pph21_total
-    
-    # Calculate koreksi_pph21 if pph21_annual is set
-    if history.pph21_annual:
-        # koreksi_pph21 is the difference between annual PPh21 and sum of monthly PPh21
-        history.koreksi_pph21 = history.pph21_annual - pph21_total
+
+    from payroll_indonesia.payroll_indonesia.doctype.annual_payroll_history.annual_payroll_history import (
+        recalculate_aph_totals,
+    )
+
+    recalculate_aph_totals(history)
 
 
 def normalize_month(bulan: Any) -> int:
@@ -943,9 +1046,7 @@ def sync_salary_slip_to_annual(doc: Any, method: Optional[str] = None) -> None:
     try:
         # Handle cancellation
         if method == "on_cancel" or getattr(doc, "docstatus", 0) == 2:
-            fiscal_year = getattr(doc, "fiscal_year", None)
-            if not fiscal_year and hasattr(doc, "start_date") and doc.start_date:
-                fiscal_year = str(getdate(doc.start_date).year)
+            fiscal_year = get_aph_fiscal_year_from_salary_slip(doc)
 
             if not fiscal_year and not warning_shown:
                 logger.warning(
@@ -993,14 +1094,19 @@ def sync_salary_slip_to_annual(doc: Any, method: Optional[str] = None) -> None:
         if method != "on_submit" and getattr(doc, "docstatus", 0) != 1:
             return
 
-        # Determine month with stricter validation
+        # Bulan gaji: end_date (cutoff 25–24), fallback start_date
         bulan = None
-        if hasattr(doc, "start_date") and doc.start_date:
+        if hasattr(doc, "end_date") and doc.end_date:
+            try:
+                bulan = getdate(doc.end_date).month
+            except Exception:
+                bulan = None
+        if bulan is None and hasattr(doc, "start_date") and doc.start_date:
             try:
                 bulan = getdate(doc.start_date).month
             except Exception:
                 bulan = None
-                
+
         if bulan is None and hasattr(doc, "bulan") and doc.bulan:
             try:
                 bulan = cint(doc.bulan)
@@ -1017,17 +1123,7 @@ def sync_salary_slip_to_annual(doc: Any, method: Optional[str] = None) -> None:
                 getattr(doc, "name", "unknown")
             )
 
-        # Determine fiscal year
-        fiscal_year = getattr(doc, "fiscal_year", None)
-        if not fiscal_year and hasattr(doc, "start_date") and doc.start_date:
-            fiscal_year = str(getdate(doc.start_date).year)
-        if not fiscal_year:
-            logger.warning(
-                "Cannot determine fiscal year for Salary Slip %s, using current year",
-                getattr(doc, "name", "unknown")
-            )
-            from datetime import datetime
-            fiscal_year = str(datetime.now().year)
+        fiscal_year = get_aph_fiscal_year_from_salary_slip(doc)
 
         # Parse PPH21 info
         pph21_info = {}
@@ -1040,18 +1136,8 @@ def sync_salary_slip_to_annual(doc: Any, method: Optional[str] = None) -> None:
                     getattr(doc, "name", "unknown"), str(e)
                 )
 
-        # Prepare monthly data
-        row = {
-            "bulan": bulan,
-            "bruto": getattr(doc, "gross_pay", 0),
-            "pengurang_netto": pph21_info.get("pengurang_netto", 0),
-            "biaya_jabatan": pph21_info.get("biaya_jabatan", 0),
-            "netto": getattr(doc, "net_pay", 0),
-            "pkp": pph21_info.get("pkp", 0),
-            "rate": pph21_info.get("rate", 0),
-            "pph21": getattr(doc, "tax", pph21_info.get("pph21", 0)),
-            "salary_slip": doc.name,
-        }
+        # Prepare monthly data (bruto TER, bukan gross_pay saja)
+        row = build_monthly_aph_row_from_salary_slip(doc)
 
         # Prepare summary for December or if requested
         summary = None

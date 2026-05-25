@@ -11,7 +11,7 @@ def setup_allowance_components():
             "description": "Tunjangan makan per hari × jumlah hari hadir",
             "depends_on_payment_days": 0,
             "amount_based_on_formula": 1,
-            "formula": "payment_days * meal_allowance",
+            "formula": "(meal_allowance / total_working_days) * payment_days if total_working_days else meal_allowance",
             "is_tax_applicable": 1,
             "round_to_the_nearest_integer": 1,
             "exempted_from_income_tax": 0
@@ -20,14 +20,26 @@ def setup_allowance_components():
             "salary_component": "Tunjangan Transport",
             "salary_component_abbr": "TT",
             "type": "Earning",
-            "description": "Tunjangan transport per hari × jumlah hari hadir",
+            "description": "Tunjangan transport bulanan (prorate payment days)",
             "depends_on_payment_days": 0,
             "amount_based_on_formula": 1,
-            "formula": "payment_days * transport_allowance",
+            "formula": "(transport_allowance / total_working_days) * payment_days if total_working_days else transport_allowance",
             "is_tax_applicable": 1,
             "round_to_the_nearest_integer": 1,
-            "exempted_from_income_tax": 0
-        }
+            "exempted_from_income_tax": 0,
+        },
+        {
+            "salary_component": "Tunjangan Operational",
+            "salary_component_abbr": "Opr_1",
+            "type": "Earning",
+            "description": "Tunjangan operational bulanan dari SSA (prorate payment days)",
+            "depends_on_payment_days": 0,
+            "amount_based_on_formula": 1,
+            "formula": "(tunjangan_operational / total_working_days) * payment_days if total_working_days else tunjangan_operational",
+            "is_tax_applicable": 1,
+            "round_to_the_nearest_integer": 1,
+            "exempted_from_income_tax": 0,
+        },
     ]
     
     for comp_data in components:

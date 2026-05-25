@@ -41,6 +41,15 @@ def _is_employer_benefit_component(component_name: str) -> bool:
     return is_bpjs_target and is_employer_side
 
 
+def _slip_row_value(row, fieldname: str, default=None):
+    """Baca field dari dict atau baris child Document (Salary Detail / Employer Contribution)."""
+    if row is None:
+        return default
+    if isinstance(row, dict):
+        return row.get(fieldname, default)
+    return getattr(row, fieldname, default)
+
+
 def _infer_employer_bpjs_taxable_from_base(salary_slip: Dict[str, Any]) -> float:
     """Fallback when employer rows are not present in slip tables."""
     # Jika karyawan bebas BPJS Kesehatan, maka komponen employer kesehatan/JKK/JKM tidak dihitung.
@@ -207,21 +216,21 @@ def sum_bruto_earnings(salary_slip: Dict[str, Any]) -> float:
     employer_contributions = salary_slip.get("employer_contributions", []) or []
     employer_rows_found = 0
     for row in [*earnings, *employer_contributions]:
-        component_name = row.get("salary_component", "")
+        component_name = _slip_row_value(row, "salary_component", "")
         is_taxable_earning = (
-            row.get("is_tax_applicable", 0) == 1
-            or row.get("is_income_tax_component", 0) == 1
-            or row.get("variable_based_on_taxable_salary", 0) == 1
+            _slip_row_value(row, "is_tax_applicable", 0) == 1
+            or _slip_row_value(row, "is_income_tax_component", 0) == 1
+            or _slip_row_value(row, "variable_based_on_taxable_salary", 0) == 1
         )
         is_employer_benefit = _is_employer_benefit_component(component_name)
         if is_employer_benefit:
             employer_rows_found += 1
         if (
             (is_taxable_earning or is_employer_benefit)
-            and row.get("statistical_component", 0) == 0
-            and row.get("exempted_from_income_tax", 0) == 0
+            and _slip_row_value(row, "statistical_component", 0) == 0
+            and _slip_row_value(row, "exempted_from_income_tax", 0) == 0
         ):
-            total += flt(row.get("amount", 0))
+            total += flt(_slip_row_value(row, "amount", 0))
     if employer_rows_found == 0:
         total += _infer_employer_bpjs_taxable_from_base(salary_slip)
     return total

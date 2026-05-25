@@ -33,7 +33,7 @@ except Exception:  # pragma: no cover
     def getdate(value):
         return datetime.strptime(str(value), "%Y-%m-%d")
 
-from frappe.utils.safe_exec import safe_eval
+from hrms.payroll.doctype.salary_slip.salary_slip import _safe_eval
 
 # Hitung PPh
 from payroll_indonesia.config.pph21_ter import calculate_pph21_TER
@@ -43,6 +43,7 @@ from payroll_indonesia.config.pph21_ter_december import (
     sum_pengurang_netto_bulanan,      # pengurang netto bulanan (exclude Biaya Jabatan)
     biaya_jabatan_bulanan,            # min(5% × bruto_bulan, 500.000)
 )
+from payroll_indonesia.override.salary_slip_cutoff_patch import apply_salary_slip_cutoff_patch
 
 # Sinkronisasi Annual Payroll History
 from payroll_indonesia.utils.sync_annual_payroll_history import sync_annual_payroll_history
@@ -50,20 +51,54 @@ from payroll_indonesia import _patch_salary_slip_globals
 
 logger = frappe.logger("payroll_indonesia")
 
+apply_salary_slip_cutoff_patch()
+
 
 class CustomSalarySlip(SalarySlip):
     """Salary Slip override dengan logika PPh21 Indonesia."""
 
+    def add_tax_components(self):
+        """HRMS menampilkan alert ini per slip; tampilkan sekali saja per batch Payroll Entry."""
+        _orig_msgprint = frappe.msgprint
+
+        def _msgprint_once(msg, *args, **kwargs):
+            if kwargs.get("alert"):
+                text = frappe.as_unicode(msg).lower()
+                if "tax component" in text and "salary structure" in text:
+                    if getattr(frappe.local, "tax_component_msg_guard", False):
+                        return
+                    frappe.local.tax_component_msg_guard = True
+            return _orig_msgprint(msg, *args, **kwargs)
+
+        frappe.msgprint = _msgprint_once
+        try:
+            super().add_tax_components()
+        finally:
+            frappe.msgprint = _orig_msgprint
+
     # -------------------------
     # Helpers umum
     # -------------------------
-    def _get_bulan_number(self, start_date=None, nama_bulan=None):
+    def _get_bulan_number(self, start_date=None, nama_bulan=None, end_date=None):
+        """Bulan gaji: untuk pola cutoff 25–24 pakai end_date (gaji Mei = s/d 24 Mei)."""
+        end_date = end_date or getattr(self, "end_date", None)
+        if end_date:
+            try:
+                return getdate(end_date).month
+            except Exception:
+                logger.debug(f"Gagal parsing end_date: {end_date}")
+
         bulan = None
         if start_date:
             try:
                 bulan = getdate(start_date).month
             except Exception:
                 logger.debug(f"Gagal parsing start_date: {start_date}")
+        elif getattr(self, "start_date", None):
+            try:
+                bulan = getdate(self.start_date).month
+            except Exception:
+                pass
 
         if not bulan and nama_bulan:
             peta = {
@@ -104,24 +139,142 @@ class CustomSalarySlip(SalarySlip):
     # -------------------------
     # Evaluasi formula
     # -------------------------
+    def _get_active_salary_structure_assignment(self):
+        """HRMS menyimpan SSA di _salary_structure_assignment (dict tanpa child table)."""
+        name = getattr(self, "salary_structure_assignment", None)
+        if not name:
+            ssa_row = getattr(self, "_salary_structure_assignment", None)
+            if isinstance(ssa_row, dict):
+                name = ssa_row.get("name")
+            elif ssa_row is not None:
+                name = getattr(ssa_row, "name", None)
+        return name
+
+    def _is_cutoff_cross_month_period(self):
+        """Slip gaji 25–24: start_date dan end_date jatuh di bulan/tahun berbeda."""
+        if not (self.start_date and self.end_date):
+            return False
+        start = getdate(self.start_date)
+        end = getdate(self.end_date)
+        return start.month != end.month or start.year != end.year
+
+    def _salary_month_reference_date(self):
+        """Tanggal acuan bulan gaji untuk SSA, fiscal year, dll. (bukan tanggal kerja)."""
+        if self._is_cutoff_cross_month_period():
+            return getdate(self.end_date)
+        return getdate(self.actual_start_date)
+
+    def set_salary_structure_assignment(self):
+        """
+        Cari SSA aktif. Pola gaji 25–24 memakai end_date supaya SSA from_date 1 Jan
+        tetap valid untuk gaji Januari.
+        """
+        from frappe import _
+        from frappe.utils.formatters import formatdate
+
+        lookup_date = self._salary_month_reference_date()
+
+        self._salary_structure_assignment = frappe.db.get_value(
+            "Salary Structure Assignment",
+            {
+                "employee": self.employee,
+                "salary_structure": self.salary_structure,
+                "from_date": ("<=", lookup_date),
+                "docstatus": 1,
+            },
+            "*",
+            order_by="from_date desc",
+            as_dict=True,
+        )
+
+        if not self._salary_structure_assignment:
+            frappe.throw(
+                _(
+                    "Please assign a Salary Structure for Employee {0} applicable from or before {1} first"
+                ).format(
+                    frappe.bold(self.employee_name),
+                    frappe.bold(formatdate(lookup_date)),
+                )
+            )
+
+        if self._salary_structure_assignment.get("name"):
+            self.salary_structure_assignment = self._salary_structure_assignment.name
+
+    def get_year_to_date_period(self):
+        """Fiscal year mengikuti bulan gaji (end_date) untuk slip cutoff 25–24."""
+        if self.payroll_period:
+            return self.payroll_period.start_date, self.payroll_period.end_date
+
+        from erpnext.accounts.utils import get_fiscal_year
+
+        lookup_date = self._salary_month_reference_date()
+        fiscal_year = get_fiscal_year(date=lookup_date, company=self.company, as_dict=1)
+        return fiscal_year.year_start_date, fiscal_year.year_end_date
+
+    def get_data_for_eval(self):
+        data, default_data = super().get_data_for_eval()
+        try:
+            from imogi_finance.payroll.salary_structure_assignment import (
+                get_assignment_formula_context,
+            )
+
+            ssa_name = self._get_active_salary_structure_assignment()
+            if ssa_name:
+                ctx = get_assignment_formula_context(ssa_name)
+                data.update(ctx)
+                default_data.update(ctx)
+        except ImportError:
+            pass
+        return data, default_data
+
     def eval_condition_and_formula(self, struct_row, data):
         context = data.copy()
         context.update(_patch_salary_slip_globals())
 
-        ssa = getattr(self, "salary_structure_assignment", None)
-        for f in ("meal_allowance", "transport_allowance"):
+        assignment_ctx = {}
+        ssa_name = self._get_active_salary_structure_assignment()
+        if ssa_name:
+            try:
+                from imogi_finance.payroll.salary_structure_assignment import (
+                    get_assignment_formula_context,
+                )
+
+                assignment_ctx = get_assignment_formula_context(ssa_name)
+                context.update(assignment_ctx)
+                data.update(assignment_ctx)
+            except ImportError:
+                pass
+
+        for f in ("meal_allowance", "transport_allowance", "base", "tunjangan_operational"):
+            if f in context:
+                continue
             v = getattr(self, f, None)
-            if v is None and ssa:
-                v = ssa.get(f) if isinstance(ssa, dict) else getattr(ssa, f, None)
+            if v is None and getattr(self, "_salary_structure_assignment", None):
+                ssa_row = self._salary_structure_assignment
+                v = ssa_row.get(f) if isinstance(ssa_row, dict) else getattr(ssa_row, f, None)
             if v is not None:
                 context[f] = v
+                data[f] = v
+
+        component = (getattr(struct_row, "salary_component", None) or "").strip()
+        if component and not (getattr(struct_row, "formula", None) or "").strip():
+            key = component.lower().replace(" ", "_")
+            if flt(assignment_ctx.get(key)):
+                return flt(assignment_ctx[key])
 
         try:
-            if getattr(struct_row, "condition", None):
-                if not safe_eval(struct_row.condition, context):
-                    return 0
-            if getattr(struct_row, "formula", None):
-                return safe_eval(struct_row.formula, context)
+            condition = getattr(struct_row, "condition", None)
+            formula = getattr(struct_row, "formula", None)
+            if condition and not _safe_eval(condition, self.whitelisted_globals, context):
+                return 0
+            if getattr(struct_row, "amount_based_on_formula", None) and formula:
+                amount = flt(
+                    _safe_eval(formula, self.whitelisted_globals, context),
+                    struct_row.precision("amount"),
+                )
+                if amount:
+                    data[struct_row.abbr] = amount
+                return amount
         except Exception as e:
             frappe.throw(
                 f"Failed evaluating formula for {getattr(struct_row, 'salary_component', 'component')}: {e}"
@@ -328,9 +481,9 @@ class CustomSalarySlip(SalarySlip):
             pass
 
         return {
-            "earnings": getattr(self, "earnings", []),
-            "deductions": getattr(self, "deductions", []),
-            "employer_contributions": getattr(self, "employer_contributions", []),
+            "earnings": [r.as_dict() for r in (self.earnings or [])],
+            "deductions": [r.as_dict() for r in (self.deductions or [])],
+            "employer_contributions": [r.as_dict() for r in (self.employer_contributions or [])],
             "base": base,
             "bebas_bpjs_kesehatan": bebas_kesehatan,
             "bebas_bpjs_jht": bebas_jht,
@@ -412,26 +565,13 @@ class CustomSalarySlip(SalarySlip):
             logger.warning(f"Failed to update rounded values for {self.name}: {e}")
 
     def populate_employer_contributions(self):
-        EMPLOYER_COMPONENTS = [
-            "BPJS Kesehatan Employer",
-            "BPJS JHT Employer",
-            "BPJS JP Employer",
-            "BPJS JKK Employer",
-            "BPJS JKM Employer",
-        ]
-        self.set("employer_contributions", [])
-        new_deductions = []
-        for d in self.deductions:
-            sc = d.get("salary_component") if isinstance(d, dict) else getattr(d, "salary_component", None)
-            amount = d.get("amount") if isinstance(d, dict) else getattr(d, "amount", 0)
-            if sc in EMPLOYER_COMPONENTS:
-                self.append("employer_contributions", {
-                    "salary_component": sc,
-                    "amount": amount
-                })
-            else:
-                new_deductions.append(d)
-        self.set("deductions", new_deductions)
+        """Salin komponen Employer dari earnings ke tabel employer_contributions."""
+        try:
+            from imogi_finance.payroll.employer_contributions import sync_doc_employer_contributions
+
+            sync_doc_employer_contributions(self)
+        except ImportError:
+            self.set("employer_contributions", [])
 
 
     def _strip_bpjs_if_exempt(self):
@@ -544,6 +684,7 @@ class CustomSalarySlip(SalarySlip):
             nomor_bulan = self._get_bulan_number(
                 start_date=getattr(self, "start_date", None),
                 nama_bulan=getattr(self, "bulan", None),
+                end_date=getattr(self, "end_date", None),
             )
 
             raw_rate = result.get("rate", 0)
@@ -598,7 +739,10 @@ class CustomSalarySlip(SalarySlip):
             info = {}
         tax_type = getattr(self, "tax_type", None) or info.get("_tax_type")
         if not tax_type:
-            bulan = self._get_bulan_number(start_date=getattr(self, "start_date", None))
+            bulan = self._get_bulan_number(
+                start_date=getattr(self, "start_date", None),
+                end_date=getattr(self, "end_date", None),
+            )
             if bulan == 12:
                 tax_type = "DECEMBER"
         mode = "december" if tax_type == "DECEMBER" else "monthly"

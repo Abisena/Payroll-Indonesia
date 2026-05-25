@@ -253,8 +253,6 @@ fixtures = [
     "TER Mapping Table",
     "Payroll Indonesia Settings",
     "Workspace",
-    "Annual Payroll History",
-    "Annual Payroll History Child",
     {
         "doctype": "Report",
         "filters": [

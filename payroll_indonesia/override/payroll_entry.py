@@ -1,5 +1,8 @@
 try:
-    from hrms.payroll.doctype.payroll_entry.payroll_entry import PayrollEntry
+    from hrms.payroll.doctype.payroll_entry.payroll_entry import (
+        PayrollEntry,
+        show_payroll_submission_status,
+    )
 except ImportError:
     # Fail hard if HRMS is missing - this is critical
     import frappe
@@ -15,7 +18,9 @@ from typing import Callable, Dict, List, Any, Optional, Tuple
 from payroll_indonesia.override.salary_slip import CustomSalarySlip
 from payroll_indonesia.config import get_value
 from payroll_indonesia.utils.sync_annual_payroll_history import sync_annual_payroll_history
-from frappe.utils import file_lock
+from frappe.utils import flt
+from frappe.utils.file_lock import LockTimeoutError
+from frappe.utils.synchronization import filelock
 import os
 import time
 from datetime import datetime, timedelta
@@ -54,6 +59,7 @@ class CustomPayrollEntry(PayrollEntry):
         Override: generate salary slips with Indonesian tax logic.
         """
         try:
+            frappe.local.tax_component_msg_guard = False
             # Clean up any existing salary slips before creating new ones
             # This prevents duplicate salary slip errors when retrying after cancel
             self.delete_salary_slips(force_cleanup=True)
@@ -186,6 +192,62 @@ class CustomPayrollEntry(PayrollEntry):
             )
             return []
 
+    def _should_auto_submit_salary_slips(self) -> bool:
+        """Auto-submit slip bila mode Payroll Indonesia (bulanan atau Desember) aktif."""
+        return bool(
+            getattr(self, "run_payroll_indonesia", 0)
+            or getattr(self, "run_payroll_indonesia_december", 0)
+        )
+
+    def _auto_submit_salary_slips(self, slip_names: List[str]) -> None:
+        """Submit draft slips + accrual JV, sama seperti tombol Submit Salary Slip di HRMS."""
+        if not self._should_auto_submit_salary_slips() or not slip_names:
+            return
+
+        submitted = []
+        unsubmitted = []
+        frappe.flags.via_payroll_entry = True
+        try:
+            for name in slip_names:
+                if not frappe.db.exists("Salary Slip", name):
+                    unsubmitted.append(name)
+                    continue
+
+                slip = frappe.get_doc("Salary Slip", name)
+                if slip.docstatus == 1:
+                    submitted.append(slip)
+                    continue
+                if slip.docstatus != 0:
+                    unsubmitted.append(name)
+                    continue
+                if flt(slip.net_pay) < 0:
+                    unsubmitted.append(name)
+                    continue
+
+                try:
+                    slip.submit()
+                    submitted.append(slip)
+                    logger.info(f"Auto-submitted salary slip: {name}")
+                except frappe.ValidationError:
+                    unsubmitted.append(name)
+                    logger.warning(f"Auto-submit failed for salary slip: {name}")
+
+            if submitted:
+                self.make_accrual_jv_entry(submitted)
+                self.email_salary_slip(submitted)
+                self.db_set(
+                    {
+                        "salary_slips_submitted": 1,
+                        "status": "Submitted",
+                        "error_message": "",
+                    }
+                )
+                self._update_summary_fields()
+
+            show_payroll_submission_status(submitted, unsubmitted, self)
+        finally:
+            frappe.flags.via_payroll_entry = False
+
     def _process_salary_slips(self, tax_calculator: Callable[[Any], None]) -> List[str]:
         """
         Process salary slips with the provided tax calculation function.
@@ -290,12 +352,7 @@ class CustomPayrollEntry(PayrollEntry):
                     # Full save needed
                     slip_obj.save(ignore_permissions=True)
                     logger.debug(f"Performed full save for slip {name}")
-                
-                # Submit the salary slip if auto_submit is enabled and slip is not already submitted
-                if hasattr(self, "auto_submit_salary_slips") and self.auto_submit_salary_slips and slip_obj.docstatus == 0:
-                    slip_obj.submit()
-                    logger.info(f"Submitted salary slip: {name}")
-                
+
                 processed_slips.append(name)
                 logger.info(f"Successfully processed slip: {name}")
             except Exception as e:
@@ -374,9 +431,12 @@ class CustomPayrollEntry(PayrollEntry):
         else:
             logger.warning("No salary slips were successfully processed")
 
-        # Update summary fields
+        # Update summary fields (draft slips; submit path updates lagi setelah submit)
         self._update_summary_fields()
-            
+
+        if processed_slips:
+            self._auto_submit_salary_slips(processed_slips)
+
         return processed_slips
 
     def _get_employee_doc(self, slip):
@@ -402,8 +462,27 @@ class CustomPayrollEntry(PayrollEntry):
     def _update_summary_fields(self):
         """Auto-fill periode, total_karyawan, dan total_amount."""
         try:
-            # Format periode: "Apr 2026" dari start_date
-            if self.start_date:
+            # Format periode dari end_date (gaji Mei = 25 Apr–24 Mei → "Mei YYYY")
+            if self.end_date:
+                from frappe.utils import getdate
+
+                d = getdate(self.end_date)
+                bulan = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "Mei",
+                    "Jun",
+                    "Jul",
+                    "Agu",
+                    "Sep",
+                    "Okt",
+                    "Nov",
+                    "Des",
+                ]
+                periode = f"{bulan[d.month - 1]} {d.year}"
+            elif self.start_date:
                 from frappe.utils import getdate
 
                 d = getdate(self.start_date)
@@ -412,14 +491,14 @@ class CustomPayrollEntry(PayrollEntry):
                     "Feb",
                     "Mar",
                     "Apr",
-                    "May",
+                    "Mei",
                     "Jun",
                     "Jul",
-                    "Aug",
+                    "Agu",
                     "Sep",
-                    "Oct",
+                    "Okt",
                     "Nov",
-                    "Dec",
+                    "Des",
                 ]
                 periode = f"{bulan[d.month - 1]} {d.year}"
             else:
@@ -448,6 +527,18 @@ class CustomPayrollEntry(PayrollEntry):
                 message=f"Failed to update summary fields for {self.name}: {e}",
                 title="Payroll Indonesia Summary Fields Error",
             )
+
+        self._refresh_employer_contribution_summary()
+
+    def _refresh_employer_contribution_summary(self) -> None:
+        try:
+            from imogi_finance.payroll.employer_contributions import (
+                update_payroll_entry_employer_summary,
+            )
+
+            update_payroll_entry_employer_summary(self.name, persist=True)
+        except Exception as e:
+            logger.warning(f"Employer contribution summary skipped for {self.name}: {e}")
 
     def on_cancel(self):
         """
@@ -503,14 +594,14 @@ class CustomPayrollEntry(PayrollEntry):
         try:
             # Define lock name and path
             lock_name = f"delete_salary_slips_{self.name}"
-            lock_path = os.path.join("locks", lock_name)
+            lock_path = os.path.join("locks", f"{lock_name}.lock")
             lock_timeout = 60  # seconds
             
             # Check for and clear stale locks (older than 10 minutes)
             self._clear_stale_locks(lock_path)
             
             # Try to acquire the lock using context manager for auto-release
-            with file_lock(lock_path, timeout=lock_timeout):
+            with filelock(lock_name, timeout=lock_timeout):
                 # Get all salary slips linked to this Payroll Entry
                 salary_slips = self.get_linked_salary_slips()
                 
@@ -550,7 +641,7 @@ class CustomPayrollEntry(PayrollEntry):
                 
                 logger.info(f"Successfully {action.lower()} all salary slips for Payroll Entry {self.name}")
                 
-        except TimeoutError:
+        except LockTimeoutError:
             logger.error(f"Timeout acquiring lock for {lock_name}. Another process may be deleting salary slips.")
             frappe.msgprint(
                 f"Cannot delete salary slips at this time. Another process is already deleting salary slips for {self.name}. "

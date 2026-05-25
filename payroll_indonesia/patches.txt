@@ -3,3 +3,8 @@
 # Example:
 # payroll_indonesia.patches.v1_0_0.initial_setup.execute
 payroll_indonesia.patches.restore_cancelled_aph
+payroll_indonesia.patches.clean_duplicate_aph_monthly_details
+payroll_indonesia.patches.resync_aph_from_salary_slips
+payroll_indonesia.patches.fix_aph_bruto_from_ter
+payroll_indonesia.patches.allow_aph_monthly_edit_on_submit
+payroll_indonesia.patches.fix_aph_cutoff_fiscal_year
