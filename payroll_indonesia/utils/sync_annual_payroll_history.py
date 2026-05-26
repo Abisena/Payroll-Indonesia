@@ -1001,6 +1001,11 @@ def build_salary_component_snapshot(doc) -> tuple[str, str]:
 	lookup_date = getattr(doc, "end_date", None) or getattr(doc, "start_date", None)
 
 	if not ssa_name and getattr(doc, "employee", None) and getattr(doc, "salary_structure", None) and lookup_date:
+		has_ssa_end_date = _salary_structure_assignment_has_end_date()
+		fields = ["name"]
+		if has_ssa_end_date:
+			fields.append("end_date")
+
 		rows = frappe.get_all(
 			"Salary Structure Assignment",
 			filters={
@@ -1009,11 +1014,15 @@ def build_salary_component_snapshot(doc) -> tuple[str, str]:
 				"from_date": ("<=", getdate(lookup_date)),
 				"docstatus": 1,
 			},
-			fields=["name", "end_date"],
+			fields=fields,
 			order_by="from_date desc",
 		)
 		candidate = rows[0] if rows else None
-		if candidate and (not candidate.get("end_date") or getdate(candidate.end_date) >= getdate(lookup_date)):
+		if candidate and (
+			not has_ssa_end_date
+			or not candidate.get("end_date")
+			or getdate(candidate.end_date) >= getdate(lookup_date)
+		):
 			ssa_name = candidate.name
 
 	if not ssa_name or not frappe.db.exists("Salary Structure Assignment", ssa_name):
@@ -1043,6 +1052,14 @@ def build_salary_component_snapshot(doc) -> tuple[str, str]:
 				lines.append(f"{label}: {amount:,.2f}")
 
 	return ssa_name, "\n".join(lines)
+
+
+def _salary_structure_assignment_has_end_date() -> bool:
+	"""Custom field dari imogi_finance bisa belum tersinkron saat patch payroll_indonesia berjalan."""
+	try:
+		return bool(frappe.db.has_column("Salary Structure Assignment", "end_date"))
+	except Exception:
+		return False
 
 
 def recalculate_summary_from_monthly_details(history: Any) -> None:
