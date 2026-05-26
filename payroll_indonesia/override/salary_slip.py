@@ -46,7 +46,10 @@ from payroll_indonesia.config.pph21_ter_december import (
 from payroll_indonesia.override.salary_slip_cutoff_patch import apply_salary_slip_cutoff_patch
 
 # Sinkronisasi Annual Payroll History
-from payroll_indonesia.utils.sync_annual_payroll_history import sync_annual_payroll_history
+from payroll_indonesia.utils.sync_annual_payroll_history import (
+    get_aph_fiscal_year_from_salary_slip,
+    sync_annual_payroll_history,
+)
 from payroll_indonesia import _patch_salary_slip_globals
 
 logger = frappe.logger("payroll_indonesia")
@@ -679,9 +682,7 @@ class CustomSalarySlip(SalarySlip):
                 "employee_name": employee_doc.get("employee_name"),
             }
 
-            fiscal_year = getattr(self, "fiscal_year", None)
-            if not fiscal_year and getattr(self, "start_date", None):
-                fiscal_year = str(getdate(self.start_date).year)
+            fiscal_year = get_aph_fiscal_year_from_salary_slip(self)
             if not fiscal_year:
                 logger.warning(f"Could not determine fiscal year for Salary Slip {self.name}, skipping sync")
                 return
@@ -759,10 +760,14 @@ class CustomSalarySlip(SalarySlip):
     def _restore_aph_if_cancelled(self):
         """Auto-restore Annual Payroll History jika ikut ter-cancel."""
         try:
-            fiscal_year = getattr(self, "fiscal_year", None) or str(getattr(self, "start_date", ""))[:4]
+            fiscal_year = get_aph_fiscal_year_from_salary_slip(self)
             if not fiscal_year or not getattr(self, "employee", None):
                 return
-            aph_name = f"{self.employee}-{fiscal_year}"
+            aph_name = frappe.db.get_value(
+                "Annual Payroll History",
+                {"employee": self.employee, "fiscal_year": fiscal_year},
+                "name",
+            )
             if frappe.db.exists("Annual Payroll History", aph_name):
                 docstatus = frappe.db.get_value("Annual Payroll History", aph_name, "docstatus")
                 if docstatus == 2:  # Cancelled
@@ -792,22 +797,10 @@ class CustomSalarySlip(SalarySlip):
                 logger.warning(f"No employee for cancelled Salary Slip {getattr(self, 'name', 'unknown')}, skip")
                 return
 
-            fiscal_year = getattr(self, "fiscal_year", None) or str(getattr(self, "start_date", ""))[:4]
+            fiscal_year = get_aph_fiscal_year_from_salary_slip(self)
             if not fiscal_year:
                 logger.warning(f"Could not determine fiscal year for cancelled Salary Slip {self.name}, skipping sync")
                 return
-
-            try:
-                info = json.loads(getattr(self, "pph21_info", "{}") or "{}")
-            except Exception:
-                info = {}
-
-            tax_type = getattr(self, "tax_type", None) or info.get("_tax_type")
-            if not tax_type:
-                bulan = self._get_bulan_number(start_date=getattr(self, "start_date", None))
-                if bulan == 12:
-                    tax_type = "DECEMBER"
-            mode = "december" if tax_type == "DECEMBER" else "monthly"
 
             sync_annual_payroll_history(
                 employee=self.employee,
@@ -815,7 +808,6 @@ class CustomSalarySlip(SalarySlip):
                 monthly_results=None,
                 summary=None,
                 cancelled_salary_slip=self.name,
-                mode=mode,
             )
             frappe.logger().info(f"[SYNC] Salary Slip {self.name} removed from Annual Payroll History")
         except frappe.ValidationError:
