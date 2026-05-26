@@ -337,6 +337,10 @@ def upsert_monthly_detail(history: Any, month_data: Dict[str, Any]) -> bool:
         target.set("salary_slip", salary_slip)
         # Hapus baris duplikat slip yang sama (bug sync / fixture lama).
         _remove_duplicate_monthly_rows(history, salary_slip, keep=target)
+
+    for field in ("salary_structure_assignment", "salary_component_snapshot"):
+        if field in month_data:
+            target.set(field, month_data.get(field) or "")
         
     # Serialize error_state to JSON consistently
     if month_data.get("error_state") is not None:
@@ -901,10 +905,10 @@ def get_aph_fiscal_year_from_salary_slip(doc) -> str:
 	Tahun Annual Payroll History = tahun bulan gaji.
 	Pola cutoff 25–24: slip 25 Des 2025–24 Jan 2026 → fiscal year 2026 (end_date), bukan 2025.
 	"""
-	if getattr(doc, "fiscal_year", None):
-		return str(doc.fiscal_year)
 	if getattr(doc, "end_date", None):
 		return str(getdate(doc.end_date).year)
+	if getattr(doc, "fiscal_year", None):
+		return str(doc.fiscal_year)
 	if getattr(doc, "start_date", None):
 		return str(getdate(doc.start_date).year)
 	from datetime import datetime
@@ -974,6 +978,7 @@ def build_monthly_aph_row_from_salary_slip(doc) -> dict:
 		or getattr(doc, "tax", None)
 		or pph21_info.get("pph21", pph21_info.get("pph21_bulan", 0))
 	)
+	ssa_name, component_snapshot = build_salary_component_snapshot(doc)
 
 	return {
 		"bulan": bulan,
@@ -985,7 +990,59 @@ def build_monthly_aph_row_from_salary_slip(doc) -> dict:
 		"rate": flt(result.get("rate") or pph21_info.get("rate", 0)),
 		"pph21": pph21,
 		"salary_slip": doc.name,
+		"salary_structure_assignment": ssa_name,
+		"salary_component_snapshot": component_snapshot,
 	}
+
+
+def build_salary_component_snapshot(doc) -> tuple[str, str]:
+	"""Snapshot komponen SSA yang dipakai slip, agar audit APH tidak berubah saat SSA diedit."""
+	ssa_name = getattr(doc, "salary_structure_assignment", None)
+	lookup_date = getattr(doc, "end_date", None) or getattr(doc, "start_date", None)
+
+	if not ssa_name and getattr(doc, "employee", None) and getattr(doc, "salary_structure", None) and lookup_date:
+		rows = frappe.get_all(
+			"Salary Structure Assignment",
+			filters={
+				"employee": doc.employee,
+				"salary_structure": doc.salary_structure,
+				"from_date": ("<=", getdate(lookup_date)),
+				"docstatus": 1,
+			},
+			fields=["name", "end_date"],
+			order_by="from_date desc",
+		)
+		candidate = rows[0] if rows else None
+		if candidate and (not candidate.get("end_date") or getdate(candidate.end_date) >= getdate(lookup_date)):
+			ssa_name = candidate.name
+
+	if not ssa_name or not frappe.db.exists("Salary Structure Assignment", ssa_name):
+		return "", ""
+
+	try:
+		ssa = frappe.get_doc("Salary Structure Assignment", ssa_name)
+	except Exception:
+		return ssa_name, ""
+
+	lines = []
+	for row in ssa.get("salary_component_amounts") or []:
+		if not row.get("salary_component"):
+			continue
+		lines.append(f"{row.salary_component}: {flt(row.amount):,.2f}")
+
+	if not lines:
+		legacy_fields = (
+			("Gaji Pokok", "base"),
+			("Tunjangan Makan", "meal_allowance"),
+			("Tunjangan Transport", "transport_allowance"),
+			("Tunjangan Operational", "tunjangan_operational"),
+		)
+		for label, fieldname in legacy_fields:
+			amount = flt(ssa.get(fieldname))
+			if amount:
+				lines.append(f"{label}: {amount:,.2f}")
+
+	return ssa_name, "\n".join(lines)
 
 
 def recalculate_summary_from_monthly_details(history: Any) -> None:

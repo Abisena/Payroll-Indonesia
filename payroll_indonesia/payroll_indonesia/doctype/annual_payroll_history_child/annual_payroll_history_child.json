@@ -77,6 +77,21 @@
       "options": "Salary Slip"
     },
     {
+      "fieldname": "salary_structure_assignment",
+      "fieldtype": "Link",
+      "label": "Salary Structure Assignment",
+      "reqd": 0,
+      "options": "Salary Structure Assignment",
+      "description": "SSA yang dipakai saat Salary Slip bulan ini dibuat"
+    },
+    {
+      "fieldname": "salary_component_snapshot",
+      "fieldtype": "Long Text",
+      "label": "Snapshot Komponen Gaji",
+      "reqd": 0,
+      "description": "Salinan komponen gaji dari SSA saat Salary Slip dibuat. Tidak berubah walau SSA diedit setelahnya."
+    },
+    {
       "fieldname": "error_state",
       "fieldtype": "Small Text",
       "label": "Error State",

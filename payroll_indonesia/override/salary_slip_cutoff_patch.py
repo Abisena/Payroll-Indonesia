@@ -32,17 +32,22 @@ def set_salary_structure_assignment(self):
 
 	lookup_date = _salary_month_reference_date(self)
 
-	self._salary_structure_assignment = frappe.db.get_value(
+	assignment_rows = frappe.get_all(
 		"Salary Structure Assignment",
-		{
+		filters={
 			"employee": self.employee,
 			"salary_structure": self.salary_structure,
 			"from_date": ("<=", lookup_date),
 			"docstatus": 1,
 		},
-		"*",
+		fields=["*"],
 		order_by="from_date desc",
-		as_dict=True,
+	)
+	candidate = assignment_rows[0] if assignment_rows else None
+	self._salary_structure_assignment = (
+		candidate
+		if candidate and (not candidate.get("end_date") or getdate(candidate.end_date) >= lookup_date)
+		else None
 	)
 
 	if not self._salary_structure_assignment:

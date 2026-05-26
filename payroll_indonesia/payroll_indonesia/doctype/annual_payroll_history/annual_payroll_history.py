@@ -6,6 +6,24 @@ from frappe.utils import cint, flt, getdate
 from frappe.model.document import Document
 
 
+def sort_monthly_details(doc) -> None:
+	"""Keep APH month rows in calendar order after every sync/save."""
+	rows = list(doc.get("monthly_details") or [])
+	if len(rows) <= 1:
+		return
+
+	def month_key(row):
+		month = cint(getattr(row, "bulan", 0))
+		if month < 1 or month > 12:
+			month = 99
+		return (month, cint(getattr(row, "idx", 0)))
+
+	rows.sort(key=month_key)
+	doc.set("monthly_details", rows)
+	for idx, row in enumerate(doc.get("monthly_details") or [], start=1):
+		row.idx = idx
+
+
 def recalculate_aph_totals(doc) -> dict:
 	"""
 	Hitung ulang ringkasan dari monthly_details.
@@ -62,6 +80,7 @@ def recalculate_aph_totals(doc) -> dict:
 
 class AnnualPayrollHistory(Document):
 	def validate(self):
+		sort_monthly_details(self)
 		recalculate_aph_totals(self)
 
 	def on_cancel(self):
@@ -158,5 +177,6 @@ def recalculate_and_save(name: str) -> dict:
 		frappe.throw(frappe._("Not permitted"), frappe.PermissionError)
 
 	totals = recalculate_aph_totals(doc)
+	sort_monthly_details(doc)
 	doc.save(ignore_permissions=True)
 	return totals
