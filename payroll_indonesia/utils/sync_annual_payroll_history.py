@@ -4,6 +4,8 @@ import json
 import traceback
 from typing import Dict, List, Optional, Tuple, Union, Any
 
+from payroll_indonesia.utils.aph_month import bulan_storage_value, normalize_bulan
+
 try:
     from frappe.utils import cint, flt, getdate
 except Exception:  # pragma: no cover - fallback for test stubs without cint/flt
@@ -280,15 +282,9 @@ def upsert_monthly_detail(history: Any, month_data: Dict[str, Any]) -> bool:
         logger.warning("Skipping monthly detail without required 'bulan'")
         return False
 
-    # Normalize month to integer within valid range
-    try:
-        bulan = cint(bulan)
-        if bulan < 1:
-            bulan = 1
-        elif bulan > 12:
-            bulan = 12
-    except (ValueError, TypeError):
-        bulan = 1  # Default to January if invalid
+    bulan_int = normalize_bulan(bulan)
+    if not bulan_int:
+        bulan_int = 1
 
     if salary_slip:
         # Pass in_transaction_context=True since this is typically called within a savepoint
@@ -309,7 +305,7 @@ def upsert_monthly_detail(history: Any, month_data: Dict[str, Any]) -> bool:
             found = detail
             break
         # If no match by salary slip but month matches, use it only if no slip is set
-        if not found and detail.bulan == bulan and not salary_slip:
+        if not found and normalize_bulan(detail.bulan) == bulan_int and not salary_slip:
             found = detail
             break
 
@@ -332,7 +328,7 @@ def upsert_monthly_detail(history: Any, month_data: Dict[str, Any]) -> bool:
             return False
         target = history.append("monthly_details", {})
 
-    target.set("bulan", bulan)
+    target.set("bulan", bulan_storage_value(bulan_int))
     if salary_slip:
         target.set("salary_slip", salary_slip)
         # Hapus baris duplikat slip yang sama (bug sync / fixture lama).
@@ -981,7 +977,7 @@ def build_monthly_aph_row_from_salary_slip(doc) -> dict:
 	ssa_name, component_snapshot = build_salary_component_snapshot(doc)
 
 	return {
-		"bulan": bulan,
+		"bulan": bulan_storage_value(bulan),
 		"bruto": bruto,
 		"pengurang_netto": pengurang,
 		"biaya_jabatan": biaya_jabatan,
@@ -1002,9 +998,12 @@ def build_salary_component_snapshot(doc) -> tuple[str, str]:
 
 	if not ssa_name and getattr(doc, "employee", None) and getattr(doc, "salary_structure", None) and lookup_date:
 		has_ssa_end_date = _salary_structure_assignment_has_end_date()
+		has_renewed_by = _salary_structure_assignment_has_renewed_by()
 		fields = ["name"]
 		if has_ssa_end_date:
 			fields.append("end_date")
+		if has_renewed_by:
+			fields.append("renewed_by_assignment_contract")
 
 		rows = frappe.get_all(
 			"Salary Structure Assignment",
@@ -1015,15 +1014,19 @@ def build_salary_component_snapshot(doc) -> tuple[str, str]:
 				"docstatus": 1,
 			},
 			fields=fields,
-			order_by="from_date desc",
+			order_by="from_date desc, creation desc",
 		)
-		candidate = rows[0] if rows else None
-		if candidate and (
-			not has_ssa_end_date
-			or not candidate.get("end_date")
-			or getdate(candidate.end_date) >= getdate(lookup_date)
-		):
+		for candidate in rows:
+			if (
+				has_renewed_by
+				and candidate.get("renewed_by_assignment_contract")
+				and _replacement_assignment_applies(candidate.get("renewed_by_assignment_contract"), lookup_date)
+			):
+				continue
+			if has_ssa_end_date and candidate.get("end_date") and getdate(candidate.end_date) < getdate(lookup_date):
+				continue
 			ssa_name = candidate.name
+			break
 
 	if not ssa_name or not frappe.db.exists("Salary Structure Assignment", ssa_name):
 		return "", ""
@@ -1062,6 +1065,32 @@ def _salary_structure_assignment_has_end_date() -> bool:
 		return False
 
 
+def _salary_structure_assignment_has_renewed_by() -> bool:
+	"""Custom tracking field dari imogi_finance bisa belum tersinkron saat patch payroll_indonesia berjalan."""
+	try:
+		return bool(frappe.db.has_column("Salary Structure Assignment", "renewed_by_assignment_contract"))
+	except Exception:
+		return False
+
+
+def _replacement_assignment_applies(replacement_name, lookup_date) -> bool:
+	if not replacement_name or not frappe.db.exists("Salary Structure Assignment", replacement_name):
+		return False
+	replacement = frappe.db.get_value(
+		"Salary Structure Assignment",
+		replacement_name,
+		["from_date", "end_date", "docstatus"],
+		as_dict=True,
+	)
+	if not replacement or replacement.get("docstatus") != 1:
+		return False
+	if replacement.get("from_date") and getdate(replacement.from_date) > getdate(lookup_date):
+		return False
+	if replacement.get("end_date") and getdate(replacement.end_date) < getdate(lookup_date):
+		return False
+	return True
+
+
 def recalculate_summary_from_monthly_details(history: Any) -> None:
     """
     Recalculate summary fields based on monthly details.
@@ -1092,18 +1121,13 @@ def normalize_month(bulan: Any) -> int:
     if bulan is None:
         from datetime import datetime
         return datetime.now().month
-        
-    try:
-        month_int = cint(bulan)
-        if month_int < 1:
-            return 1
-        elif month_int > 12:
-            return 12
+
+    month_int = normalize_bulan(bulan)
+    if month_int:
         return month_int
-    except (ValueError, TypeError):
-        # Default to current month if invalid
-        from datetime import datetime
-        return datetime.now().month
+
+    from datetime import datetime
+    return datetime.now().month
 
 
 def sync_salary_slip_to_annual(doc: Any, method: Optional[str] = None) -> None:

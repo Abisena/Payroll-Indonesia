@@ -12,6 +12,24 @@ import frappe
 from frappe.utils import getdate
 
 
+def _replacement_assignment_applies(replacement_name, lookup_date) -> bool:
+	if not replacement_name or not frappe.db.exists("Salary Structure Assignment", replacement_name):
+		return False
+	replacement = frappe.db.get_value(
+		"Salary Structure Assignment",
+		replacement_name,
+		["from_date", "end_date", "docstatus"],
+		as_dict=True,
+	)
+	if not replacement or replacement.get("docstatus") != 1:
+		return False
+	if replacement.get("from_date") and getdate(replacement.from_date) > getdate(lookup_date):
+		return False
+	if replacement.get("end_date") and getdate(replacement.end_date) < getdate(lookup_date):
+		return False
+	return True
+
+
 def _is_cutoff_cross_month_period(self) -> bool:
 	if not (getattr(self, "start_date", None) and getattr(self, "end_date", None)):
 		return False
@@ -41,12 +59,21 @@ def set_salary_structure_assignment(self):
 			"docstatus": 1,
 		},
 		fields=["*"],
-		order_by="from_date desc",
+		order_by="from_date desc, creation desc",
 	)
-	candidate = assignment_rows[0] if assignment_rows else None
+	candidate = None
+	for row in assignment_rows:
+		if row.get("renewed_by_assignment_contract") and _replacement_assignment_applies(
+			row.get("renewed_by_assignment_contract"), lookup_date
+		):
+			continue
+		if row.get("end_date") and getdate(row.end_date) < lookup_date:
+			continue
+		candidate = row
+		break
 	self._salary_structure_assignment = (
 		candidate
-		if candidate and (not candidate.get("end_date") or getdate(candidate.end_date) >= lookup_date)
+		if candidate
 		else None
 	)
 

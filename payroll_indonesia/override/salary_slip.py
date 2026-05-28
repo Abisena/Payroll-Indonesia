@@ -47,6 +47,7 @@ from payroll_indonesia.override.salary_slip_cutoff_patch import apply_salary_sli
 
 # Sinkronisasi Annual Payroll History
 from payroll_indonesia.utils.sync_annual_payroll_history import (
+    build_monthly_aph_row_from_salary_slip,
     get_aph_fiscal_year_from_salary_slip,
     sync_annual_payroll_history,
 )
@@ -55,6 +56,24 @@ from payroll_indonesia import _patch_salary_slip_globals
 logger = frappe.logger("payroll_indonesia")
 
 apply_salary_slip_cutoff_patch()
+
+
+def _replacement_assignment_applies(replacement_name, lookup_date) -> bool:
+    if not replacement_name or not frappe.db.exists("Salary Structure Assignment", replacement_name):
+        return False
+    replacement = frappe.db.get_value(
+        "Salary Structure Assignment",
+        replacement_name,
+        ["from_date", "end_date", "docstatus"],
+        as_dict=True,
+    )
+    if not replacement or replacement.get("docstatus") != 1:
+        return False
+    if replacement.get("from_date") and getdate(replacement.from_date) > getdate(lookup_date):
+        return False
+    if replacement.get("end_date") and getdate(replacement.end_date) < getdate(lookup_date):
+        return False
+    return True
 
 
 class CustomSalarySlip(SalarySlip):
@@ -186,12 +205,21 @@ class CustomSalarySlip(SalarySlip):
                 "docstatus": 1,
             },
             fields=["*"],
-            order_by="from_date desc",
+            order_by="from_date desc, creation desc",
         )
-        candidate = assignment_rows[0] if assignment_rows else None
+        candidate = None
+        for row in assignment_rows:
+            if row.get("renewed_by_assignment_contract") and _replacement_assignment_applies(
+                row.get("renewed_by_assignment_contract"), lookup_date
+            ):
+                continue
+            if row.get("end_date") and getdate(row.end_date) < lookup_date:
+                continue
+            candidate = row
+            break
         self._salary_structure_assignment = (
             candidate
-            if candidate and (not candidate.get("end_date") or getdate(candidate.end_date) >= lookup_date)
+            if candidate
             else None
         )
 
@@ -358,8 +386,10 @@ class CustomSalarySlip(SalarySlip):
             )
             if rows:
                 hist = frappe.get_doc("Annual Payroll History", rows[0].name)
+                from payroll_indonesia.utils.aph_month import normalize_bulan
+
                 for r in hist.get("monthly_details", []) or []:
-                    bln = getattr(r, "bulan", 0)
+                    bln = normalize_bulan(getattr(r, "bulan", 0))
                     if bln and bln < 12:
                         ytd_bruto += flt(getattr(r, "bruto", 0))
                         # gunakan kolom netto jika tersedia; fallback: bruto - biaya_jabatan - pengurang_netto
@@ -620,6 +650,12 @@ class CustomSalarySlip(SalarySlip):
                     if isinstance(row, dict): row["amount"] = 0
                     else: row.amount = 0
 
+            for row in (self.get("employer_contributions") or []):
+                sc = row.get("salary_component") if isinstance(row, dict) else getattr(row, "salary_component", "")
+                if is_bpjs(sc):
+                    if isinstance(row, dict): row["amount"] = 0
+                    else: row.amount = 0
+
         except Exception as e:
             frappe.log_error(
                 message=f"Failed to strip BPJS for {self.name}: {e}",
@@ -696,17 +732,22 @@ class CustomSalarySlip(SalarySlip):
             raw_rate = result.get("rate", 0)
             numeric_rate = raw_rate if isinstance(raw_rate, (int, float)) else 0
 
-            monthly_result = {
-                "bulan": nomor_bulan,
-                "bruto": result.get("bruto", result.get("bruto_total", 0)),
-                "pengurang_netto": result.get("pengurang_netto", result.get("income_tax_deduction_total", 0)),
-                "biaya_jabatan": result.get("biaya_jabatan", result.get("biaya_jabatan_total", 0)),
-                "netto": result.get("netto", result.get("netto_total", 0)),
-                "pkp": result.get("pkp", result.get("pkp_annual", 0)),
-                "rate": flt(numeric_rate),
-                "pph21": result.get("pph21", result.get("pph21_bulan", 0)),
-                "salary_slip": self.name,
-            }
+            monthly_result = build_monthly_aph_row_from_salary_slip(self)
+            monthly_result.update(
+                {
+                    "bulan": nomor_bulan,
+                    "bruto": monthly_result.get("bruto") or result.get("bruto", result.get("bruto_total", 0)),
+                    "pengurang_netto": monthly_result.get("pengurang_netto")
+                    or result.get("pengurang_netto", result.get("income_tax_deduction_total", 0)),
+                    "biaya_jabatan": monthly_result.get("biaya_jabatan")
+                    or result.get("biaya_jabatan", result.get("biaya_jabatan_total", 0)),
+                    "netto": monthly_result.get("netto") or result.get("netto", result.get("netto_total", 0)),
+                    "pkp": monthly_result.get("pkp") or result.get("pkp", result.get("pkp_annual", 0)),
+                    "rate": monthly_result.get("rate") or flt(numeric_rate),
+                    "pph21": monthly_result.get("pph21") or result.get("pph21", result.get("pph21_bulan", 0)),
+                    "salary_slip": self.name,
+                }
+            )
 
             if mode == "monthly":
                 sync_annual_payroll_history(
@@ -853,6 +894,13 @@ def strip_bpjs_hook(doc, method=None):
             if is_bpjs(sc):
                 if isinstance(e, dict): e["amount"] = 0
                 else: e.amount = 0
+                changed = True
+
+        for row in (doc.get("employer_contributions") or []):
+            sc = row.get("salary_component") if isinstance(row, dict) else getattr(row, "salary_component", "")
+            if is_bpjs(sc):
+                if isinstance(row, dict): row["amount"] = 0
+                else: row.amount = 0
                 changed = True
 
         if changed:

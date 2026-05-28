@@ -122,6 +122,12 @@
       "label": "Monthly Detail",
       "options": "Annual Payroll History Child",
       "allow_on_submit": 1
+    },
+    {
+      "fieldname": "monthly_details_jumlah",
+      "fieldtype": "HTML",
+      "label": "Total (Jumlah per Kolom)",
+      "options": ""
     }
   ],
   "permissions": [

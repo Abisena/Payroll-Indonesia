@@ -1,0 +1,13 @@
+/* Baris Jumlah */
+[data-fieldname="monthly_details"] .aph-total-grid-row {
+	border-top: 2px solid var(--table-border-color);
+	background-color: var(--subtle-fg);
+}
+
+[data-fieldname="monthly_details"] .aph-total-grid-row .grid-static-col[data-fieldname="bulan"] .static-area {
+	font-weight: 700;
+}
+
+[data-fieldname="monthly_details"] .aph-total-grid-row .static-area.text-right {
+	font-weight: 600;
+}

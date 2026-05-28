@@ -59,6 +59,15 @@ class CustomPayrollEntry(PayrollEntry):
         Override: generate salary slips with Indonesian tax logic.
         """
         try:
+            from imogi_finance.payroll.payroll_period_integration import (
+                validate_active_assignment_contracts,
+            )
+
+            validate_active_assignment_contracts(self)
+        except ImportError:
+            pass
+
+        try:
             frappe.local.tax_component_msg_guard = False
             # Clean up any existing salary slips before creating new ones
             # This prevents duplicate salary slip errors when retrying after cancel
@@ -77,6 +86,8 @@ class CustomPayrollEntry(PayrollEntry):
             else:
                 result = super().create_salary_slips()
                 return result if result is not None else []
+        except frappe.ValidationError:
+            raise
         except Exception as e:
             error_trace = traceback.format_exc()
             frappe.log_error(

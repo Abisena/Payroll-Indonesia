@@ -5,6 +5,8 @@ import frappe
 from frappe.utils import cint, flt, getdate
 from frappe.model.document import Document
 
+from payroll_indonesia.utils.aph_month import normalize_bulan
+
 
 def sort_monthly_details(doc) -> None:
 	"""Keep APH month rows in calendar order after every sync/save."""
@@ -13,7 +15,7 @@ def sort_monthly_details(doc) -> None:
 		return
 
 	def month_key(row):
-		month = cint(getattr(row, "bulan", 0))
+		month = normalize_bulan(getattr(row, "bulan", 0))
 		if month < 1 or month > 12:
 			month = 99
 		return (month, cint(getattr(row, "idx", 0)))
@@ -37,7 +39,7 @@ def recalculate_aph_totals(doc) -> dict:
 		bruto = flt(row.bruto)
 		pengurang_netto = flt(getattr(row, "pengurang_netto", 0))
 		biaya_jabatan = flt(getattr(row, "biaya_jabatan", 0))
-		bulan = cint(row.bulan)
+		bulan = normalize_bulan(row.bulan)
 
 		calculated_netto = bruto - pengurang_netto - biaya_jabatan
 		stored_netto = flt(row.netto)

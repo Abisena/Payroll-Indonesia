@@ -9,7 +9,7 @@ app_license = "MIT"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/payroll_indonesia/css/payroll_indonesia.css"
+# app_include_css = "/assets/payroll_indonesia/css/annual_payroll_history.css"
 # app_include_js = "/assets/payroll_indonesia/js/payroll_indonesia.js"
 
 # include js, css files in header of web template
@@ -28,7 +28,7 @@ app_license = "MIT"
 
 # include js in doctype views
 doctype_js = {
-    "Annual Payroll History": "payroll_indonesia/payroll_indonesia/doctype/annual_payroll_history/annual_payroll_history.js"
+    "Annual Payroll History": "public/js/annual_payroll_history.js",
 }
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
