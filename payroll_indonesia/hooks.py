@@ -144,6 +144,7 @@ doc_events = {
         "on_cancel": "payroll_indonesia.override.salary_slip.on_cancel",
     },
     "Employee Checkin": {
+        "before_insert": "payroll_indonesia.checkin_gate.force_server_time",
         "after_insert": "payroll_indonesia.attendance.auto_attendance.auto_create_from_checkin"
     },
 }

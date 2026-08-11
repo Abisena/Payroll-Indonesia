@@ -12,7 +12,24 @@ belum absen hari itu.
 """
 
 import frappe
-from frappe.utils import today
+from frappe.utils import now_datetime, today
+
+
+def force_server_time(doc, method=None):
+	"""before_insert Employee Checkin: cegah karyawan absen pakai jam palsu
+	(jam device diubah, atau panggil API langsung) lewat halaman /checkin.
+
+	Aturannya bukan berdasarkan role (role kayak "HR User" ternyata nempel
+	juga ke akun karyawan biasa di sistem ini, jadi gak bisa dipercaya buat
+	nentuin siapa yang "berhak"). Yang dipakai: SIAPA yang lagi diabsenin.
+	- Ngabsenin diri sendiri (Employee.user_id == user yang lagi login)
+	  -> jam server dipaksa, titik. Siapapun dia, HR sekalipun.
+	- Nginput/ngoreksi jam punya ORANG LAIN (lewat Desk, misal lupa absen)
+	  -> jam yang diinput dipercaya, karena itu jelas bukan self-checkin.
+	"""
+	employee_user = frappe.db.get_value("Employee", doc.employee, "user_id")
+	if employee_user and employee_user == frappe.session.user:
+		doc.time = now_datetime()
 
 
 def boot_session(bootinfo):
