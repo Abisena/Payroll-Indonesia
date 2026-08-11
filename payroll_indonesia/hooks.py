@@ -10,7 +10,7 @@ app_license = "MIT"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/payroll_indonesia/css/annual_payroll_history.css"
-# app_include_js = "/assets/payroll_indonesia/js/payroll_indonesia.js"
+app_include_js = "/assets/payroll_indonesia/js/checkin_gate.js?v=1"
 
 # include js, css files in header of web template
 # web_include_css = "/assets/payroll_indonesia/css/payroll_indonesia.css"
@@ -33,6 +33,12 @@ doctype_js = {
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
+
+# Boot
+# ----------
+
+# force karyawan yang belum absen hari ini untuk mampir ke /checkin dulu
+boot_session = "payroll_indonesia.checkin_gate.boot_session"
 
 # Home Pages
 # ----------
